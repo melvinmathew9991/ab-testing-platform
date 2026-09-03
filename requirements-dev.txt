@@ -6,3 +6,4 @@ httpx==0.28.1
 
 # The API test suite runs against the real application.
 -r services/api/requirements.txt
+-r services/ui/requirements.txt

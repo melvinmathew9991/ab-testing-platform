@@ -153,7 +153,7 @@ abtest power   --baseline 0.19 --mde 0.02       # traffic needed before you star
 ## Testing
 
 ```bash
-make test         # 153 tests, including calibration (~50s)
+make test         # 186 tests, including calibration (~90s)
 make test-fast    # skip the calibration runs
 make lint         # ruff
 ```
@@ -187,12 +187,38 @@ src/abtest/          the toolkit
                      variance_reduction, multiple_testing
   reporting/         plots and generated reports
 services/api/        FastAPI service (app/, Dockerfile, requirements.txt)
+services/ui/         Streamlit interface (app/, Dockerfile, requirements.txt)
 analysis/            fetch_data.py, run_cookie_cats.py (the showcase)
 configs/             cookie_cats.yml - the experiment definition
-tests/               unit/, integration/, api/ (153 tests) and shared fixtures
+tests/               unit/, integration/, api/, ui/ (186 tests) and shared fixtures
 reports/             generated HTML/Markdown/JSON report and figures
 docs/                architecture.md, plus the inherited articles in legacy/
 legacy/              the original educational codebase, archived
+```
+
+## Running the whole thing
+
+```bash
+docker compose up --build      # then open http://localhost:8501
+```
+
+Two services: a Streamlit interface and the FastAPI service it talks to. The
+interface holds no analysis code - every number it shows came from the API,
+which is why the same numbers appear in a downloaded report.
+
+| Page | What it is for |
+|---|---|
+| **Overview** | The bundled Cookie Cats experiment, analysed live, with the three things a naive read would miss |
+| **Analyse** | Upload data, map columns, define metrics, get a decision and a downloadable report |
+| **Plan** | How much traffic an effect needs, and what an existing sample could detect |
+| **Peeking** | Interim looks against an alpha-spending boundary, next to what a daily check would have concluded |
+| **Methodology** | The choices the tool makes, and what it refuses to do |
+
+Run them separately during development:
+
+```bash
+make api    # http://localhost:8000/docs
+make ui     # http://localhost:8501
 ```
 
 ## The API

@@ -7,6 +7,11 @@ All notable changes to this project are recorded here. Format follows
 ## [Unreleased]
 
 ### Added
+- Streamlit interface in `services/ui`: a worked example on the landing page,
+  a guided analysis flow with column mapping and metric definition, planning
+  and interim-monitoring calculators, and a methodology page stating the
+  tool's limits. Interactive Plotly figures share the report's palette.
+- `docker compose up` runs both services together.
 - FastAPI service in `services/api`: analysis, validation, report generation,
   power planning and sequential monitoring endpoints, with typed error
   responses, per-request ids, upload and row limits, and a container image.
