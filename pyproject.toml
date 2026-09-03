@@ -34,6 +34,9 @@ abtest = ["py.typed", "reporting/templates/*.j2"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "slow: calibration runs that simulate many experiments",
+]
 
 [tool.black]
 line-length = 100

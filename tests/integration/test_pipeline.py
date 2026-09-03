@@ -22,44 +22,7 @@ from abtest.experiment import Experiment
 from abtest.reporting.report import build_html_report, build_markdown_report
 
 
-def make_config(**overrides) -> ExperimentConfig:
-    base = dict(
-        name="test experiment",
-        unit_col="user_id",
-        variant_col="variant",
-        control="A",
-        treatment="B",
-        metrics=[
-            MetricSpec("converted", "converted", "binary", primary=True),
-            MetricSpec("revenue", "revenue", "continuous", guardrail=True),
-        ],
-        seed=1,
-    )
-    base.update(overrides)
-    return ExperimentConfig(**base)
-
-
-def make_data(
-    n: int = 4_000,
-    lift: float = 0.0,
-    base_rate: float = 0.20,
-    seed: int = 0,
-    variant_ratio: float = 0.5,
-) -> pd.DataFrame:
-    rng = np.random.default_rng(seed)
-    variant = np.where(rng.random(n) < variant_ratio, "A", "B")
-    rate = np.where(variant == "A", base_rate, base_rate * (1 + lift))
-    converted = (rng.random(n) < rate).astype(int)
-    revenue = converted * rng.gamma(2, 20, n)
-    return pd.DataFrame(
-        {
-            "user_id": np.arange(n),
-            "variant": variant,
-            "converted": converted,
-            "revenue": revenue,
-            "country": rng.choice(["US", "FR", "JP"], n),
-        }
-    )
+from tests.conftest import make_config, make_data
 
 
 class TestConfig:
