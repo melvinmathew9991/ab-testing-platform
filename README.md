@@ -93,7 +93,7 @@ right here; the method that produced it is not one that can be trusted to be.
 ```python
 from abtest import ExperimentConfig, ExperimentData, Experiment
 
-config  = ExperimentConfig.from_yaml("experiments/cookie_cats.yml")
+config  = ExperimentConfig.from_yaml("configs/cookie_cats.yml")
 data    = ExperimentData.from_file("data/raw/cookie_cats.csv", config)
 results = Experiment(data, config).run(resample=True)
 
@@ -105,7 +105,7 @@ results.decision()       # ship / do not ship, with the reasoning
 Command line:
 
 ```bash
-abtest analyze --config experiments/cookie_cats.yml --data data/raw/cookie_cats.csv \
+abtest analyze --config configs/cookie_cats.yml --data data/raw/cookie_cats.csv \
                --html reports/out.html --segment-by country device
 abtest checks  --config ... --data ...          # trust checks only, exit 1 on failure
 abtest power   --baseline 0.19 --mde 0.02       # traffic needed before you start
@@ -115,18 +115,19 @@ abtest power   --baseline 0.19 --mde 0.02       # traffic needed before you star
 
 | Module | Contents |
 |---|---|
-| `abtest/config.py` | Declarative experiment definition (YAML or code): metrics, roles, direction, alpha, power, correction method |
-| `abtest/data.py` | Unit-level data contract: required columns, one row per unit, binary metrics really binary; fatal problems raise, the rest are reported |
-| `abtest/checks.py` | Sample-ratio mismatch, normal-approximation sparsity, outlier influence, segment balance |
-| `abtest/stats/frequentist.py` | Two-proportion z-test, Welch's t-test, CIs, observed power, MDE |
-| `abtest/stats/power.py` | Sample size, MDE for a given sample, power curves, for proportions and means |
-| `abtest/stats/bootstrap.py` | Percentile bootstrap CIs and permutation tests, batched and vectorised |
-| `abtest/stats/bayesian.py` | Beta-Binomial posterior: P(B > A), expected loss, credible interval on lift |
-| `abtest/stats/sequential.py` | O'Brien-Fleming boundaries and alpha spending for interim looks |
-| `abtest/stats/variance.py` | CUPED variance reduction, winsorization with a shared cap |
-| `abtest/stats/multiple.py` | Bonferroni and Benjamini-Hochberg |
-| `abtest/experiment.py` | Orchestration: validate → check → test → correct → decide |
-| `abtest/plots.py`, `report.py` | Figures and a self-contained HTML/Markdown report |
+| `src/abtest/config.py` | Declarative experiment definition (YAML or code): metrics, roles, direction, alpha, power, correction method |
+| `src/abtest/data.py` | Unit-level data contract: required columns, one row per unit, binary metrics really binary; fatal problems raise, the rest are reported |
+| `src/abtest/checks.py` | Sample-ratio mismatch, normal-approximation sparsity, outlier influence, segment balance |
+| `src/abtest/stats/frequentist.py` | Two-proportion z-test, Welch's t-test, CIs, observed power, MDE |
+| `src/abtest/stats/power.py` | Sample size, MDE for a given sample, power curves, for proportions and means |
+| `src/abtest/stats/bootstrap.py` | Percentile bootstrap CIs and permutation tests, batched and vectorised |
+| `src/abtest/stats/bayesian.py` | Beta-Binomial posterior: P(B > A), expected loss, credible interval on lift |
+| `src/abtest/stats/sequential.py` | O'Brien-Fleming boundaries and alpha spending for interim looks |
+| `src/abtest/stats/variance_reduction.py` | CUPED variance reduction, winsorization with a shared cap |
+| `src/abtest/stats/multiple_testing.py` | Bonferroni and Benjamini-Hochberg |
+| `src/abtest/experiment.py` | Orchestration: validate → check → test → correct → decide |
+| `src/abtest/reporting/` | Figures and a self-contained HTML/Markdown report |
+| `src/abtest/exceptions.py`, `log.py` | Typed failures and structured logging, so callers can act on an error and an operator can see what ran |
 
 ### Design decisions worth knowing
 
@@ -152,7 +153,9 @@ abtest power   --baseline 0.19 --mde 0.02       # traffic needed before you star
 ## Testing
 
 ```bash
-pytest          # 84 tests
+make test         # 107 tests, including calibration (~30s)
+make test-fast    # skip the calibration runs
+make lint         # ruff
 ```
 
 The statistical core is verified against `scipy` and closed-form identities
@@ -161,22 +164,55 @@ to 1e-12, sample size against the textbook formula, power and MDE as inverses of
 each other, O'Brien-Fleming boundaries against their known values (3.92 / 2.77 /
 2.26 / 1.96 at four looks), bootstrap intervals against the parametric interval
 on normal data, CUPED for unbiasedness plus variance reduction across 20
-simulated experiments. The pipeline tests build synthetic experiments with a
-known effect and assert the toolkit reaches the right decision - including that
-a broken split blocks the result entirely.
+simulated experiments.
+
+Above those sit **calibration tests**, which run thousands of A/A experiments
+and assert that significance appears at exactly the advertised 5%: for the
+proportion test, for Welch with deliberately unequal arms and variances, for the
+uniformity of the null p-value distribution, for the Benjamini-Hochberg family
+error rate, and for the assembled pipeline end to end. Unit tests confirm each
+formula; these confirm the pipeline built from them, which is where a mis-wired
+correction or a filter applied to one arm would otherwise hide. Every simulation
+is seeded.
+
+The pipeline tests also build synthetic experiments with a known effect and
+assert the toolkit reaches the right decision - including that a broken split or
+units assigned to both arms invalidate the result entirely.
 
 ## Project structure
 
 ```
-abtest/              the toolkit
-  stats/             frequentist, bootstrap, power, bayesian, sequential, variance, multiple
+src/abtest/          the toolkit
+  stats/             frequentist, bootstrap, power, bayesian, sequential,
+                     variance_reduction, multiple_testing
+  reporting/         plots and generated reports
 analysis/            fetch_data.py, run_cookie_cats.py (the showcase)
-experiments/         cookie_cats.yml - the experiment definition
-tests/               84 tests
+configs/             cookie_cats.yml - the experiment definition
+tests/               unit/, integration/ (107 tests) and shared fixtures
 reports/             generated HTML/Markdown/JSON report and figures
-docs/                background articles on experimentation practice
+docs/                architecture.md, plus the inherited articles in legacy/
 legacy/              the original educational codebase, archived
 ```
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+python analysis/fetch_data.py
+make test-fast
+```
+
+`make` targets cover install, test, lint, format, analysis and clean.
+Configuration is read from the environment (`LOG_LEVEL`, `LOG_FORMAT`); see
+`.env.example`. CI runs lint and the full suite on Python 3.10, 3.11 and 3.12.
+
+### Known limits
+
+- Two variants per experiment; multi-arm tests are not supported.
+- `Experiment.sensitivity()` is closed-form for binary metrics only. For
+  continuous metrics use `abtest.stats.power.sample_size_means`.
+- Metrics are per-unit values. Ratio metrics with a varying denominator need
+  the delta method, which is not implemented yet.
 
 ## Data
 
@@ -187,9 +223,7 @@ the first week, and day-1 / day-7 retention flags.
 
 ## Notes on this repository
 
-`docs/` holds background articles from the original educational project this
-repository grew out of; they remain a useful companion on experimentation
-practice. `legacy/` holds that original codebase, archived unchanged. Neither is
-imported by the toolkit.
-
-MIT licensed.
+`docs/architecture.md` describes the target design for the deployed
+application. `docs/legacy/` holds background articles from the original
+educational project this repository grew out of, and `legacy/` that original
+codebase, archived unchanged; neither is imported by the toolkit.
