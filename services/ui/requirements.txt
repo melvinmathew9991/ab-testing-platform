@@ -1,0 +1,7 @@
+# Frontend dependencies, pinned for reproducible container builds.
+# The UI is a thin client: it holds no analysis code, so it needs neither the
+# library nor its scientific stack.
+streamlit==1.61.1
+plotly==7.0.0
+pandas==2.3.3
+httpx==0.28.1
