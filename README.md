@@ -153,7 +153,7 @@ abtest power   --baseline 0.19 --mde 0.02       # traffic needed before you star
 ## Testing
 
 ```bash
-make test         # 107 tests, including calibration (~30s)
+make test         # 153 tests, including calibration (~50s)
 make test-fast    # skip the calibration runs
 make lint         # ruff
 ```
@@ -186,13 +186,60 @@ src/abtest/          the toolkit
   stats/             frequentist, bootstrap, power, bayesian, sequential,
                      variance_reduction, multiple_testing
   reporting/         plots and generated reports
+services/api/        FastAPI service (app/, Dockerfile, requirements.txt)
 analysis/            fetch_data.py, run_cookie_cats.py (the showcase)
 configs/             cookie_cats.yml - the experiment definition
-tests/               unit/, integration/ (107 tests) and shared fixtures
+tests/               unit/, integration/, api/ (153 tests) and shared fixtures
 reports/             generated HTML/Markdown/JSON report and figures
 docs/                architecture.md, plus the inherited articles in legacy/
 legacy/              the original educational codebase, archived
 ```
+
+## The API
+
+The toolkit is also served as an HTTP API, which is what the Streamlit
+frontend talks to.
+
+```bash
+make api                                   # http://localhost:8000/docs
+# or the container, which is what gets deployed
+docker build -f services/api/Dockerfile -t ab-api .
+docker run --rm -p 8000:8080 ab-api
+```
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health`, `/ready` | Liveness, and whether demo data is available |
+| `GET /api/v1/datasets` | Bundled demo datasets and their default experiment definitions |
+| `POST /api/v1/data/inspect` | Profile an upload: columns, types, candidate unit/variant columns |
+| `POST /api/v1/experiments/validate` | Data contract and trust checks only |
+| `POST /api/v1/experiments/analyze` | Full analysis: metrics, checks, decision |
+| `POST /api/v1/experiments/report` | The same analysis as a downloadable HTML report |
+| `POST /api/v1/power/sample-size`, `/mde`, `/curve` | Planning before launch |
+| `POST /api/v1/sequential/boundaries` | Interim looks against an alpha-spending boundary |
+
+`/docs` serves the generated OpenAPI reference.
+
+The analysis endpoints take one multipart request: a `payload` form field
+holding the JSON experiment definition, plus an optional file. Without a file,
+`dataset_id` selects a bundled dataset.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/experiments/analyze   -F 'payload={"config": {"name": "gate test", "unit_col": "userid",
+       "variant_col": "version", "control": "gate_30", "treatment": "gate_40",
+       "metrics": [{"name": "retention_7", "column": "retention_7",
+                    "type": "binary", "primary": true}]},
+       "dataset_id": "cookie_cats"}'
+```
+
+Failures are typed rather than generic: an invalid experiment definition or
+malformed data returns 422, data too thin to analyse returns 409, an upload
+over the limit returns 413, and every response carries an `X-Request-ID` that
+matches the server log. Limits (`MAX_UPLOAD_MB`, `MAX_ROWS`,
+`MAX_PERMUTATIONS`) come from the environment - see `.env.example`.
+
+Note that a failed critical check is not an error: the analysis returns 200
+with the checks and a recommendation not to use the result.
 
 ## Development
 

@@ -2,3 +2,7 @@
 -r requirements.txt
 pytest==9.1.1
 ruff==0.16.3
+httpx==0.28.1
+
+# The API test suite runs against the real application.
+-r services/api/requirements.txt

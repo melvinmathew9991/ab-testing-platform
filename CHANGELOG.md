@@ -7,6 +7,9 @@ All notable changes to this project are recorded here. Format follows
 ## [Unreleased]
 
 ### Added
+- FastAPI service in `services/api`: analysis, validation, report generation,
+  power planning and sequential monitoring endpoints, with typed error
+  responses, per-request ids, upload and row limits, and a container image.
 - `abtest.exceptions`: `ABTestError` with `ConfigurationError`,
   `DataValidationError`, `InsufficientDataError` and `UnsupportedMetricError`,
   each also subclassing the built-in it replaces.
