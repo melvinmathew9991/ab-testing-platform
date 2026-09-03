@@ -4,7 +4,7 @@ Typical use:
 
     from abtest import ExperimentConfig, ExperimentData, Experiment
 
-    config = ExperimentConfig.from_yaml("experiments/cookie_cats.yml")
+    config = ExperimentConfig.from_yaml("configs/cookie_cats.yml")
     data = ExperimentData.from_file("data/raw/cookie_cats.csv", config)
     results = Experiment(data, config).run()
     print(results.summary())

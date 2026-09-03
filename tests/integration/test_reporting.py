@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from abtest import plots
+from abtest.reporting import plots
 from abtest.stats.bayesian import beta_binomial_test
 from abtest.stats.bootstrap import permutation_test
 from abtest.stats.power import power_curve

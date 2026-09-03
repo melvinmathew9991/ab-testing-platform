@@ -1,8 +1,8 @@
 """Command line interface.
 
-    python -m abtest analyze --config experiments/cookie_cats.yml --data data/raw/cookie_cats.csv
+    python -m abtest analyze --config configs/cookie_cats.yml --data data/raw/cookie_cats.csv
     python -m abtest power --baseline 0.19 --mde 0.05
-    python -m abtest checks --config experiments/cookie_cats.yml --data data/raw/cookie_cats.csv
+    python -m abtest checks --config configs/cookie_cats.yml --data data/raw/cookie_cats.csv
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import pandas as pd
 from abtest.config import ExperimentConfig
 from abtest.data import ExperimentData
 from abtest.experiment import Experiment
-from abtest.report import build_html_report, build_markdown_report
+from abtest.reporting.report import build_html_report, build_markdown_report
 from abtest.stats.power import sample_size_proportions
 
 

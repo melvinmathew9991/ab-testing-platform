@@ -10,8 +10,8 @@ from abtest.stats.power import (
     sample_size_proportions,
 )
 from abtest.stats.bayesian import BayesianResult, beta_binomial_test
-from abtest.stats.multiple import adjust_pvalues
-from abtest.stats.variance import cuped_adjust, winsorize
+from abtest.stats.multiple_testing import adjust_pvalues
+from abtest.stats.variance_reduction import cuped_adjust, winsorize
 from abtest.stats.sequential import obrien_fleming_boundaries, sequential_analysis
 
 __all__ = [

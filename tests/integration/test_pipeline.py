@@ -9,7 +9,7 @@ from abtest.checks import normal_approximation, outlier_influence, sample_ratio_
 from abtest.config import ExperimentConfig, MetricSpec
 from abtest.data import DataValidationError, ExperimentData
 from abtest.experiment import Experiment
-from abtest.report import build_html_report, build_markdown_report
+from abtest.reporting.report import build_html_report, build_markdown_report
 
 
 def make_config(**overrides) -> ExperimentConfig:

@@ -1,6 +1,6 @@
 {
   "experiment": "Cookie Cats - first gate at level 30 vs level 40",
-  "run_at": "2026-09-03 07:15 UTC",
+  "run_at": "2026-09-03 15:11 UTC",
   "counts": {
     "gate_30": 44700,
     "gate_40": 45489

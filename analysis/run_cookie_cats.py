@@ -19,8 +19,8 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from abtest import Experiment, ExperimentConfig, ExperimentData  # noqa: E402
-from abtest import plots  # noqa: E402
-from abtest.report import build_html_report, build_markdown_report  # noqa: E402
+from abtest.reporting import plots  # noqa: E402
+from abtest.reporting.report import build_html_report, build_markdown_report  # noqa: E402
 from abtest.stats.power import (  # noqa: E402
     power_curve,
     sample_size_proportions,
@@ -28,7 +28,7 @@ from abtest.stats.power import (  # noqa: E402
 from abtest.stats.sequential import sequential_analysis  # noqa: E402
 from analysis.fetch_data import DEST as DATA_PATH, fetch  # noqa: E402
 
-CONFIG_PATH = "experiments/cookie_cats.yml"
+CONFIG_PATH = "configs/cookie_cats.yml"
 FIG_DIR = os.path.join("reports", "figures")
 REPORT_HTML = os.path.join("reports", "cookie_cats_report.html")
 REPORT_MD = os.path.join("reports", "cookie_cats_summary.md")

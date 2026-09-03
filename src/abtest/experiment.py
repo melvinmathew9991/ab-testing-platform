@@ -23,9 +23,9 @@ from abtest.stats.bootstrap import (
     permutation_test,
 )
 from abtest.stats.frequentist import TestResult, proportion_test, welch_ttest
-from abtest.stats.multiple import adjust_pvalues
+from abtest.stats.multiple_testing import adjust_pvalues
 from abtest.stats.power import mde_for_sample
-from abtest.stats.variance import CupedResult, cuped_adjust, winsorize
+from abtest.stats.variance_reduction import CupedResult, cuped_adjust, winsorize
 
 
 @dataclass
