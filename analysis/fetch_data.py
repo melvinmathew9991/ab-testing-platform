@@ -5,6 +5,7 @@ committed. Run once:
 
     python analysis/fetch_data.py
 """
+
 from __future__ import annotations
 
 import os

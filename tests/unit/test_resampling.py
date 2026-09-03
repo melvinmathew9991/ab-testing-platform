@@ -1,4 +1,5 @@
 """Bootstrap intervals and permutation tests."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -74,8 +75,11 @@ class TestResampling:
 
         rng = np.random.default_rng(8)
         res = bootstrap_ci(
-            rng.normal(0, 1, 200), rng.normal(1, 1, 200),
-            statistic=trimmed, n_bootstrap=200, seed=7,
+            rng.normal(0, 1, 200),
+            rng.normal(1, 1, 200),
+            statistic=trimmed,
+            n_bootstrap=200,
+            seed=7,
         )
         assert res.ci_low < 1.0 < res.ci_high
 

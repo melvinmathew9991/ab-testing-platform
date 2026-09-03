@@ -5,6 +5,7 @@ calibration tests all generate data the same way - a calibration result is
 only meaningful if the data generating process is the one everything else
 is tested against.
 """
+
 from __future__ import annotations
 
 import numpy as np

@@ -4,9 +4,10 @@ Testing five metrics at alpha = 0.05 gives roughly a 23% chance of at least
 one false positive. Correcting is not optional once an experiment reports
 more than one metric.
 """
+
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
@@ -34,9 +35,7 @@ def adjust_pvalues(
     """
     p = np.asarray(list(p_values), dtype=float)
     if p.size == 0:
-        return pd.DataFrame(
-            columns=["label", "p_value", "p_adjusted", "significant", "method"]
-        )
+        return pd.DataFrame(columns=["label", "p_value", "p_adjusted", "significant", "method"])
     if np.any((p < 0) | (p > 1)):
         raise DataValidationError("p-values must lie in [0, 1]")
     method = method.lower()

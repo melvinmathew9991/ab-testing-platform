@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.4"]
+dev = ["pytest>=7.4", "ruff>=0.5"]
 
 [project.scripts]
 abtest = "abtest.cli:main"
@@ -38,6 +38,17 @@ markers = [
     "slow: calibration runs that simulate many experiments",
 ]
 
-[tool.black]
+[tool.ruff]
 line-length = 100
-target-version = ["py310"]
+target-version = "py310"
+src = ["src", "tests", "analysis"]
+
+[tool.ruff.lint]
+# E/F: correctness and style, I: import order, B: likely bugs, UP: modern syntax
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests import fixtures for their side effect of being in scope, and the
+# analysis script sets sys.path before importing the package.
+"tests/*" = ["E501"]
+"analysis/*" = ["E402"]

@@ -1,6 +1,7 @@
 """The frequentist tests are checked against scipy and against closed-form
 identities, not against previously recorded output - a snapshot test would
 happily lock in a bug."""
+
 from __future__ import annotations
 
 import numpy as np

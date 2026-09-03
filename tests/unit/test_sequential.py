@@ -1,9 +1,10 @@
 """Alpha spending and interim analyses."""
+
 from __future__ import annotations
 
 import pytest
 
-from abtest.exceptions import ConfigurationError, InsufficientDataError
+from abtest.exceptions import InsufficientDataError
 from abtest.stats.sequential import obrien_fleming_boundaries, sequential_analysis
 
 
@@ -21,10 +22,20 @@ class TestSequential:
 
     def test_naive_testing_stops_earlier_than_sequential(self):
         looks = [
-            {"label": "d1", "n_control": 500, "conversions_control": 100,
-             "n_treatment": 500, "conversions_treatment": 130},
-            {"label": "d2", "n_control": 5_000, "conversions_control": 1_000,
-             "n_treatment": 5_000, "conversions_treatment": 1_090},
+            {
+                "label": "d1",
+                "n_control": 500,
+                "conversions_control": 100,
+                "n_treatment": 500,
+                "conversions_treatment": 130,
+            },
+            {
+                "label": "d2",
+                "n_control": 5_000,
+                "conversions_control": 1_000,
+                "n_treatment": 5_000,
+                "conversions_treatment": 1_090,
+            },
         ]
         out = sequential_analysis(looks, planned_n_total=10_000)
         assert out.loc[0, "stop_naive"]

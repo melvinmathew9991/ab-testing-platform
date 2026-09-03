@@ -4,11 +4,12 @@ These are the tools to reach for when the metric is not well behaved - heavy
 tails, ratios, quantiles - and the normal approximation behind a t-test is
 hard to defend.
 """
+
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Callable
 
 import numpy as np
 

@@ -1,4 +1,5 @@
 """Bonferroni and Benjamini-Hochberg corrections."""
+
 from __future__ import annotations
 
 import pytest

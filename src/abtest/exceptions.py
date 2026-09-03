@@ -9,6 +9,7 @@ service needs it rather than where the code happens to fail.
 Every type also subclasses the built-in it replaces, so existing callers
 catching ``ValueError`` keep working.
 """
+
 from __future__ import annotations
 
 

@@ -1,4 +1,5 @@
 """Config, data contract, checks and the end-to-end experiment pipeline."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -20,8 +21,6 @@ from abtest.exceptions import (
 )
 from abtest.experiment import Experiment
 from abtest.reporting.report import build_html_report, build_markdown_report
-
-
 from tests.conftest import make_config, make_data
 
 
@@ -49,10 +48,12 @@ class TestConfig:
 
     def test_rejects_duplicate_metric_names(self):
         with pytest.raises(ConfigurationError, match="Duplicate metric names"):
-            make_config(metrics=[
-                MetricSpec("same", "converted", "binary"),
-                MetricSpec("same", "revenue", "continuous"),
-            ])
+            make_config(
+                metrics=[
+                    MetricSpec("same", "converted", "binary"),
+                    MetricSpec("same", "revenue", "continuous"),
+                ]
+            )
 
     def test_rejects_identical_variants(self):
         with pytest.raises(ConfigurationError, match="two distinct variants"):
@@ -181,9 +182,7 @@ class TestChecks:
 
 class TestExperiment:
     def test_detects_a_real_effect(self):
-        data = ExperimentData.from_dataframe(
-            make_data(n=40_000, lift=0.25, seed=3), make_config()
-        )
+        data = ExperimentData.from_dataframe(make_data(n=40_000, lift=0.25, seed=3), make_config())
         results = Experiment(data).run()
         outcome = results.outcome("converted")
         assert outcome.verdict == "win"
@@ -197,9 +196,7 @@ class TestExperiment:
         assert "do not ship" in results.decision()["recommendation"]
 
     def test_a_regression_blocks_the_launch(self):
-        data = ExperimentData.from_dataframe(
-            make_data(n=60_000, lift=-0.3, seed=5), make_config()
-        )
+        data = ExperimentData.from_dataframe(make_data(n=60_000, lift=-0.3, seed=5), make_config())
         results = Experiment(data).run()
         assert results.outcome("converted").verdict == "regression"
         assert results.decision()["recommendation"] == "do not ship"
@@ -256,10 +253,13 @@ class TestExperiment:
         df["pre_revenue"] = df["revenue"] * 0.8 + 5
         df.loc[df.index[:120], "revenue"] = np.nan
 
-        config = make_config(metrics=[
-            MetricSpec("revenue", "revenue", "continuous", primary=True,
-                       covariate="pre_revenue"),
-        ])
+        config = make_config(
+            metrics=[
+                MetricSpec(
+                    "revenue", "revenue", "continuous", primary=True, covariate="pre_revenue"
+                ),
+            ]
+        )
         results = Experiment(ExperimentData.from_dataframe(df, config), config).run()
         outcome = results.outcome("revenue")
 
@@ -273,10 +273,14 @@ class TestExperiment:
             Experiment(data).run(segment_by=["not_a_column"])
 
     def test_sensitivity_on_a_continuous_metric_is_reported_clearly(self):
-        config = make_config(metrics=[
-            MetricSpec("revenue", "revenue", "continuous", primary=True),
-        ])
-        experiment = Experiment(ExperimentData.from_dataframe(make_data(2_000, seed=26), config), config)
+        config = make_config(
+            metrics=[
+                MetricSpec("revenue", "revenue", "continuous", primary=True),
+            ]
+        )
+        experiment = Experiment(
+            ExperimentData.from_dataframe(make_data(2_000, seed=26), config), config
+        )
         experiment.run()
         with pytest.raises(UnsupportedMetricError, match="sample_size_means"):
             experiment.sensitivity()

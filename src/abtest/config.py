@@ -3,11 +3,13 @@
 An experiment is described declaratively (in code or YAML) so that the same
 analysis can be re-run, reviewed and version-controlled.
 """
+
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field, asdict
-from typing import Literal, Sequence
+from collections.abc import Sequence
+from dataclasses import asdict, dataclass
+from typing import Literal
 
 import yaml
 
@@ -80,9 +82,7 @@ class ExperimentConfig:
     multiple_testing: Literal["none", "bonferroni", "bh"] = "bh"
 
     def __post_init__(self) -> None:
-        self.metrics = [
-            m if isinstance(m, MetricSpec) else MetricSpec(**m) for m in self.metrics
-        ]
+        self.metrics = [m if isinstance(m, MetricSpec) else MetricSpec(**m) for m in self.metrics]
         if not 0 < self.alpha < 1:
             raise ConfigurationError("alpha must be in (0, 1)")
         if not 0 < self.power < 1:
@@ -97,9 +97,7 @@ class ExperimentConfig:
                 f"needs two distinct variants"
             )
         if self.unit_col == self.variant_col:
-            raise ConfigurationError(
-                f"unit_col and variant_col are both {self.unit_col!r}"
-            )
+            raise ConfigurationError(f"unit_col and variant_col are both {self.unit_col!r}")
         names = [m.name for m in self.metrics]
         duplicates = {n for n in names if names.count(n) > 1}
         if duplicates:
@@ -123,8 +121,8 @@ class ExperimentConfig:
         raise KeyError(name)
 
     @classmethod
-    def from_yaml(cls, path: str | os.PathLike) -> "ExperimentConfig":
-        with open(path, "r", encoding="utf-8") as fh:
+    def from_yaml(cls, path: str | os.PathLike) -> ExperimentConfig:
+        with open(path, encoding="utf-8") as fh:
             raw = yaml.safe_load(fh)
         split = raw.get("expected_split")
         if split is not None:

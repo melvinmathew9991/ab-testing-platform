@@ -3,9 +3,10 @@
 Both tests return the same :class:`TestResult` container so that downstream
 reporting never needs to know which test produced the numbers.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 
 import numpy as np
 from scipy import stats
@@ -117,9 +118,7 @@ def proportion_test(
 
     pooled = (conversions_control + conversions_treatment) / (n_control + n_treatment)
     se_pooled = float(np.sqrt(pooled * (1 - pooled) * (1 / n_control + 1 / n_treatment)))
-    se_unpooled = float(
-        np.sqrt(p0 * (1 - p0) / n_control + p1 * (1 - p1) / n_treatment)
-    )
+    se_unpooled = float(np.sqrt(p0 * (1 - p0) / n_control + p1 * (1 - p1) / n_treatment))
 
     z = diff / se_pooled if se_pooled > 0 else 0.0
     p_value = _pvalue_from_z(z, alternative)
@@ -130,9 +129,7 @@ def proportion_test(
 
     # Power the design actually had against the effect that was observed.
     observed_power = float(
-        stats.norm.sf(z_crit - abs(diff) / se_unpooled)
-        if se_unpooled > 0
-        else np.nan
+        stats.norm.sf(z_crit - abs(diff) / se_unpooled) if se_unpooled > 0 else np.nan
     )
 
     return TestResult(
@@ -190,9 +187,7 @@ def welch_ttest(
     else:
         # Welch-Satterthwaite: each variance is paired with the sample size
         # it was estimated from.
-        dof = (v0 / n0 + v1 / n1) ** 2 / (
-            (v0 / n0) ** 2 / (n0 - 1) + (v1 / n1) ** 2 / (n1 - 1)
-        )
+        dof = (v0 / n0 + v1 / n1) ** 2 / ((v0 / n0) ** 2 / (n0 - 1) + (v1 / n1) ** 2 / (n1 - 1))
         t_stat = diff / se
         p_value = _pvalue_from_t(t_stat, dof, alternative)
 
@@ -200,9 +195,7 @@ def welch_ttest(
     ci_low, ci_high = diff - t_crit * se, diff + t_crit * se
     mde = (t_crit + float(stats.t.ppf(power, dof))) * se
     observed_power = float(
-        stats.norm.sf(stats.norm.ppf(1 - alpha / 2) - abs(diff) / se)
-        if se > 0
-        else np.nan
+        stats.norm.sf(stats.norm.ppf(1 - alpha / 2) - abs(diff) / se) if se > 0 else np.nan
     )
 
     return TestResult(

@@ -5,6 +5,7 @@ Everything here is written for the two-proportion case (the common one for
 conversion metrics) plus a generic variant that works from a standard
 deviation, which covers continuous metrics.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -49,7 +50,9 @@ def sample_size_proportions(
     if not 0 < p1 < 1:
         raise ConfigurationError("baseline + effect must stay within (0, 1)")
 
-    z_alpha = stats.norm.ppf(1 - alpha / 2) if alternative == "two-sided" else stats.norm.ppf(1 - alpha)
+    z_alpha = (
+        stats.norm.ppf(1 - alpha / 2) if alternative == "two-sided" else stats.norm.ppf(1 - alpha)
+    )
     z_beta = stats.norm.ppf(power)
 
     # Unequal allocation: variance of the difference scales with 1 + 1/ratio.
@@ -142,9 +145,7 @@ def mde_for_sample(
     z_beta = stats.norm.ppf(power)
     p0 = baseline_rate
 
-    mde = (z_alpha + z_beta) * np.sqrt(
-        p0 * (1 - p0) * (1 / n_control + 1 / n_treatment)
-    )
+    mde = (z_alpha + z_beta) * np.sqrt(p0 * (1 - p0) * (1 / n_control + 1 / n_treatment))
     for _ in range(50):
         p1 = min(max(p0 + mde, 1e-9), 1 - 1e-9)
         se = np.sqrt(p0 * (1 - p0) / n_control + p1 * (1 - p1) / n_treatment)

@@ -4,6 +4,7 @@ A Beta-Binomial model answers the two questions stakeholders actually ask:
 "how likely is B better than A?" and "if I ship B and I am wrong, how much
 do I lose?". Both are decision-ready in a way a p-value is not.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

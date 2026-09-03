@@ -6,6 +6,7 @@ pushes the real error rate well above 5%. The Lan-DeMets alpha-spending
 approach fixes this by spending the error budget gradually: early looks face
 a much stricter bar than the final one.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

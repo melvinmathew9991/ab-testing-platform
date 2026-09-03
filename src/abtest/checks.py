@@ -5,6 +5,7 @@ all. These checks catch the failure modes that actually happen in practice:
 a broken split, metrics dominated by a handful of users, and a metric so
 sparse the normal approximation does not hold.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -59,9 +60,7 @@ def sample_ratio_mismatch(
     expected = np.array(expected_split, dtype=float) * total
 
     if total == 0:
-        return CheckResult(
-            "sample_ratio_mismatch", False, "critical", "No units in the experiment"
-        )
+        return CheckResult("sample_ratio_mismatch", False, "critical", "No units in the experiment")
 
     chi2 = float(((observed - expected) ** 2 / expected).sum())
     p_value = float(stats.chi2.sf(chi2, df=1))
@@ -180,17 +179,14 @@ def normal_approximation(
             + (
                 ""
                 if passed
-                else f" - fewer than {minimum} in a cell, prefer an exact or "
-                f"bootstrap method"
+                else f" - fewer than {minimum} in a cell, prefer an exact or bootstrap method"
             )
         ),
         details={"conversions": int(conversions), "failures": int(failures)},
     )
 
 
-def segment_balance(
-    data: ExperimentData, dimension: str, alpha: float = 0.001
-) -> CheckResult:
+def segment_balance(data: ExperimentData, dimension: str, alpha: float = 0.001) -> CheckResult:
     """Check a pre-experiment dimension is distributed alike across variants.
 
     Randomisation should balance every pre-assignment attribute. A large
@@ -224,9 +220,7 @@ def run_all_checks(data: ExperimentData) -> list[CheckResult]:
     cfg = data.config
     counts = data.counts()
     results: list[CheckResult] = [
-        sample_ratio_mismatch(
-            counts[cfg.control], counts[cfg.treatment], cfg.expected_split
-        ),
+        sample_ratio_mismatch(counts[cfg.control], counts[cfg.treatment], cfg.expected_split),
         assignment_integrity(data.double_assigned, len(data)),
     ]
 

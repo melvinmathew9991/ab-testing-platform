@@ -1,4 +1,5 @@
 """Beta-Binomial posterior comparisons."""
+
 from __future__ import annotations
 
 import pytest

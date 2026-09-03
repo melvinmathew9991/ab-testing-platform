@@ -1,0 +1,15 @@
+.git
+.github
+.pytest_cache
+.ruff_cache
+__pycache__
+*.py[cod]
+*.egg-info
+.venv
+venv
+data/raw
+outputs
+reports/figures
+docs/legacy
+legacy
+notebooks

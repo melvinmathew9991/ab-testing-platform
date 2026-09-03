@@ -7,6 +7,7 @@ report, a Markdown summary, a JSON result file and the figures behind them.
 
 Everything is seeded, so re-running reproduces the same numbers.
 """
+
 from __future__ import annotations
 
 import json
@@ -26,7 +27,8 @@ from abtest.stats.power import (  # noqa: E402
     sample_size_proportions,
 )
 from abtest.stats.sequential import sequential_analysis  # noqa: E402
-from analysis.fetch_data import DEST as DATA_PATH, fetch  # noqa: E402
+from analysis.fetch_data import DEST as DATA_PATH  # noqa: E402
+from analysis.fetch_data import fetch
 
 CONFIG_PATH = "configs/cookie_cats.yml"
 FIG_DIR = os.path.join("reports", "figures")
@@ -98,8 +100,8 @@ def main() -> int:
         f"With {sum(results.counts.values()):,} users the experiment could detect a "
         f"{sensitivity['mde_relative']:+.2%} relative change at {config.power:.0%} power.\n"
         f"Detecting a 2% relative change would need "
-        f"{needed_for_2pct['n_total']:,} users ({needed_for_2pct['n_total'] / sum(results.counts.values()):.1f}x "
-        f"this experiment)."
+        f"{needed_for_2pct['n_total']:,} users "
+        f"({needed_for_2pct['n_total'] / sum(results.counts.values()):.1f}x this experiment)."
     )
 
     # ------------------------------------------------------------- peeking
@@ -107,78 +109,104 @@ def main() -> int:
     naive_stops = looks[looks["stop_naive"] & ~looks["stop_sequential"]]
     print("\n--- Peeking simulation (retention_7, random arrival order) ---")
     print(
-        looks[["label", "n_total", "rate_control", "rate_treatment", "z_score",
-               "p_value_fixed", "p_threshold_sequential", "stop_naive", "stop_sequential"]]
-        .to_string(index=False)
+        looks[
+            [
+                "label",
+                "n_total",
+                "rate_control",
+                "rate_treatment",
+                "z_score",
+                "p_value_fixed",
+                "p_threshold_sequential",
+                "stop_naive",
+                "stop_sequential",
+            ]
+        ].to_string(index=False)
     )
 
     # ------------------------------------------------------------- figures
     figures = []
-    figures.append((
-        "Relative lift with 95% confidence intervals. Day-7 retention is the only "
-        "metric whose interval clears zero - and it clears it downwards.",
-        plots.lift_forest(summary, os.path.join(FIG_DIR, "lift_forest.png")),
-    ))
-    figures.append((
-        "Retention levels in both arms. The gap is small in absolute terms "
-        "(0.8 percentage points on day 7) but consistent.",
-        plots.metric_bars(
-            summary[summary["role"] == "primary"],
-            os.path.join(FIG_DIR, "metric_levels.png"),
-            title="Retention by variant",
-        ),
-    ))
-    figures.append((
-        "What this experiment could see. At the traffic it collected, only effects "
-        f"larger than {sensitivity['mde_relative']:.1%} relative were reliably detectable - "
-        "the observed day-7 drop sits just past that line.",
-        plots.power_curve_plot(
-            curve,
-            observed_effect=primary.test.relative_diff,
-            mde=sensitivity["mde_relative"],
-            target_power=config.power,
-            path=os.path.join(FIG_DIR, "power_curve.png"),
-            title="Power curve - day-7 retention",
-        ),
-    ))
-    figures.append((
-        "The same conclusion without a normal approximation: the posterior gives "
-        f"{primary.bayesian.prob_treatment_better:.1%} probability that gate 40 is better.",
-        plots.posterior_plot(
-            primary.bayesian, os.path.join(FIG_DIR, "posterior_retention_7.png"),
-            title="Day-7 retention - posterior lift",
-        ),
-    ))
+    figures.append(
+        (
+            "Relative lift with 95% confidence intervals. Day-7 retention is the only "
+            "metric whose interval clears zero - and it clears it downwards.",
+            plots.lift_forest(summary, os.path.join(FIG_DIR, "lift_forest.png")),
+        )
+    )
+    figures.append(
+        (
+            "Retention levels in both arms. The gap is small in absolute terms "
+            "(0.8 percentage points on day 7) but consistent.",
+            plots.metric_bars(
+                summary[summary["role"] == "primary"],
+                os.path.join(FIG_DIR, "metric_levels.png"),
+                title="Retention by variant",
+            ),
+        )
+    )
+    figures.append(
+        (
+            "What this experiment could see. At the traffic it collected, only effects "
+            f"larger than {sensitivity['mde_relative']:.1%} relative were reliably detectable - "
+            "the observed day-7 drop sits just past that line.",
+            plots.power_curve_plot(
+                curve,
+                observed_effect=primary.test.relative_diff,
+                mde=sensitivity["mde_relative"],
+                target_power=config.power,
+                path=os.path.join(FIG_DIR, "power_curve.png"),
+                title="Power curve - day-7 retention",
+            ),
+        )
+    )
+    figures.append(
+        (
+            "The same conclusion without a normal approximation: the posterior gives "
+            f"{primary.bayesian.prob_treatment_better:.1%} probability that gate 40 is better.",
+            plots.posterior_plot(
+                primary.bayesian,
+                os.path.join(FIG_DIR, "posterior_retention_7.png"),
+                title="Day-7 retention - posterior lift",
+            ),
+        )
+    )
 
     rounds = results.outcome("game_rounds")
-    figures.append((
-        "Game rounds per player, clipped at the 99th percentile. The metric is "
-        "heavily right-skewed, which is why it is winsorized before testing and "
-        "checked with a permutation test.",
-        plots.distribution_plot(
-            data.values("game_rounds", config.control),
-            data.values("game_rounds", config.treatment),
-            os.path.join(FIG_DIR, "gamerounds_distribution.png"),
-            title="Game rounds per player",
-            xlabel="Rounds played",
-        ),
-    ))
-    if rounds.permutation is not None:
-        figures.append((
-            f"Permutation null for game rounds: {rounds.permutation.n_permutations:,} random "
-            "re-assignments of the same players. The observed difference sits well inside "
-            "the noise.",
-            plots.null_distribution_plot(
-                rounds.permutation, os.path.join(FIG_DIR, "permutation_null.png"),
-                title="Game rounds - permutation null vs observed",
+    figures.append(
+        (
+            "Game rounds per player, clipped at the 99th percentile. The metric is "
+            "heavily right-skewed, which is why it is winsorized before testing and "
+            "checked with a permutation test.",
+            plots.distribution_plot(
+                data.values("game_rounds", config.control),
+                data.values("game_rounds", config.treatment),
+                os.path.join(FIG_DIR, "gamerounds_distribution.png"),
+                title="Game rounds per player",
+                xlabel="Rounds played",
             ),
-        ))
-    figures.append((
-        "Peeking at day-7 retention as traffic accumulates. A naive daily check would "
-        f"have called the result at {len(naive_stops)} of 8 looks where the sequential "
-        "boundary says to keep waiting.",
-        plots.sequential_plot(looks, os.path.join(FIG_DIR, "sequential.png")),
-    ))
+        )
+    )
+    if rounds.permutation is not None:
+        figures.append(
+            (
+                f"Permutation null for game rounds: {rounds.permutation.n_permutations:,} random "
+                "re-assignments of the same players. The observed difference sits well inside "
+                "the noise.",
+                plots.null_distribution_plot(
+                    rounds.permutation,
+                    os.path.join(FIG_DIR, "permutation_null.png"),
+                    title="Game rounds - permutation null vs observed",
+                ),
+            )
+        )
+    figures.append(
+        (
+            "Peeking at day-7 retention as traffic accumulates. A naive daily check would "
+            f"have called the result at {len(naive_stops)} of 8 looks where the sequential "
+            "boundary says to keep waiting.",
+            plots.sequential_plot(looks, os.path.join(FIG_DIR, "sequential.png")),
+        )
+    )
 
     # ------------------------------------------------------------- reports
     raw_control = data.values("game_rounds", config.control)

@@ -1,9 +1,10 @@
 """Command line interface.
 
-    python -m abtest analyze --config configs/cookie_cats.yml --data data/raw/cookie_cats.csv
-    python -m abtest power --baseline 0.19 --mde 0.05
-    python -m abtest checks --config configs/cookie_cats.yml --data data/raw/cookie_cats.csv
+python -m abtest analyze --config configs/cookie_cats.yml --data data/raw/cookie_cats.csv
+python -m abtest power --baseline 0.19 --mde 0.05
+python -m abtest checks --config configs/cookie_cats.yml --data data/raw/cookie_cats.csv
 """
+
 from __future__ import annotations
 
 import argparse
@@ -13,9 +14,9 @@ import sys
 import pandas as pd
 
 from abtest.config import ExperimentConfig
-from abtest.log import configure_logging
 from abtest.data import ExperimentData
 from abtest.experiment import Experiment
+from abtest.log import configure_logging
 from abtest.reporting.report import build_html_report, build_markdown_report
 from abtest.stats.power import sample_size_proportions
 
@@ -86,10 +87,15 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--html", help="Write an HTML report here")
     analyze.add_argument("--markdown", help="Write a Markdown summary here")
     analyze.add_argument("--json", help="Write machine-readable results here")
-    analyze.add_argument("--resample", action="store_true",
-                         help="Add bootstrap CIs and permutation tests (slower)")
-    analyze.add_argument("--segment-by", nargs="*", default=[],
-                         help="Pre-experiment dimensions to break results down by")
+    analyze.add_argument(
+        "--resample", action="store_true", help="Add bootstrap CIs and permutation tests (slower)"
+    )
+    analyze.add_argument(
+        "--segment-by",
+        nargs="*",
+        default=[],
+        help="Pre-experiment dimensions to break results down by",
+    )
     analyze.set_defaults(func=cmd_analyze)
 
     checks = sub.add_parser("checks", help="Run trust checks only")

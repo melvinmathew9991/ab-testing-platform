@@ -9,6 +9,7 @@ Colour values are taken verbatim from the validated reference palette: slots 1
 and 2 of the categorical theme, the fixed status colours, and the chart chrome
 inks. They are used as documented rather than re-stepped.
 """
+
 from __future__ import annotations
 
 import os
@@ -21,8 +22,8 @@ import numpy as np
 import pandas as pd
 
 # --- design tokens ---------------------------------------------------------
-CONTROL = "#2a78d6"      # categorical slot 1 (blue)
-TREATMENT = "#eb6834"    # categorical slot 2 (orange)
+CONTROL = "#2a78d6"  # categorical slot 1 (blue)
+TREATMENT = "#eb6834"  # categorical slot 2 (orange)
 GOOD = "#0ca30c"
 CRITICAL = "#d03b3b"
 WARNING = "#fab219"
@@ -67,11 +68,18 @@ def apply_style() -> None:
 
 
 def _title(ax, title: str, subtitle: str | None = None) -> None:
-    ax.set_title(title, loc="left", fontsize=12, fontweight="bold", color=INK, pad=22 if subtitle else 8)
+    ax.set_title(
+        title, loc="left", fontsize=12, fontweight="bold", color=INK, pad=22 if subtitle else 8
+    )
     if subtitle:
         ax.text(
-            0, 1.015, subtitle, transform=ax.transAxes, fontsize=9,
-            color=INK_SECONDARY, va="bottom",
+            0,
+            1.015,
+            subtitle,
+            transform=ax.transAxes,
+            fontsize=9,
+            color=INK_SECONDARY,
+            va="bottom",
         )
 
 
@@ -84,7 +92,9 @@ def _save(fig, path: str | None):
 
 
 # ---------------------------------------------------------------------------
-def lift_forest(summary: pd.DataFrame, path: str | None = None, title: str = "Relative lift by metric"):
+def lift_forest(
+    summary: pd.DataFrame, path: str | None = None, title: str = "Relative lift by metric"
+):
     """Point estimate and 95% CI per metric, on a shared relative scale.
 
     The reference line at zero is the decision line: intervals that cross it
@@ -94,9 +104,12 @@ def lift_forest(summary: pd.DataFrame, path: str | None = None, title: str = "Re
     df = summary.iloc[::-1].reset_index(drop=True)
     # A metric with a zero baseline has no relative interval to draw. Drop
     # those rows rather than letting NaN reach the axis limits, and say so.
-    finite = df[["relative_diff", "rel_ci_low", "rel_ci_high"]].apply(
-        pd.to_numeric, errors="coerce"
-    ).notna().all(axis=1)
+    finite = (
+        df[["relative_diff", "rel_ci_low", "rel_ci_high"]]
+        .apply(pd.to_numeric, errors="coerce")
+        .notna()
+        .all(axis=1)
+    )
     dropped = df[~finite]["metric"].tolist()
     df = df[finite].reset_index(drop=True)
     n = len(df)
@@ -104,10 +117,13 @@ def lift_forest(summary: pd.DataFrame, path: str | None = None, title: str = "Re
         fig, ax = plt.subplots(figsize=(8.0, 2.4))
         ax.axis("off")
         ax.text(
-            0.5, 0.5,
-            "No metric has a relative interval to plot "
-            "(every baseline is zero)", ha="center", va="center",
-            fontsize=11, color=INK_SECONDARY,
+            0.5,
+            0.5,
+            "No metric has a relative interval to plot (every baseline is zero)",
+            ha="center",
+            va="center",
+            fontsize=11,
+            color=INK_SECONDARY,
         )
         _title(ax, title)
         return _save(fig, path)
@@ -118,19 +134,36 @@ def lift_forest(summary: pd.DataFrame, path: str | None = None, title: str = "Re
     pad = span * 0.04
 
     for i, row in df.iterrows():
-        colour = GOOD if row["verdict"] == "win" else (CRITICAL if row["verdict"] == "regression" else MUTED)
+        colour = (
+            GOOD
+            if row["verdict"] == "win"
+            else (CRITICAL if row["verdict"] == "regression" else MUTED)
+        )
         ax.plot(
-            [row["rel_ci_low"], row["rel_ci_high"]], [i, i],
-            color=colour, linewidth=2, solid_capstyle="round", zorder=2,
+            [row["rel_ci_low"], row["rel_ci_high"]],
+            [i, i],
+            color=colour,
+            linewidth=2,
+            solid_capstyle="round",
+            zorder=2,
         )
         ax.scatter(
-            [row["relative_diff"]], [i], s=64, color=colour,
-            edgecolor=SURFACE, linewidth=2, zorder=3,
+            [row["relative_diff"]],
+            [i],
+            s=64,
+            color=colour,
+            edgecolor=SURFACE,
+            linewidth=2,
+            zorder=3,
         )
         ax.text(
-            row["rel_ci_high"] + pad, i,
+            row["rel_ci_high"] + pad,
+            i,
             f"{row['relative_diff']:+.2%}  (p={row['p_adjusted']:.3f})",
-            fontsize=9, color=INK_SECONDARY, va="center", ha="left",
+            fontsize=9,
+            color=INK_SECONDARY,
+            va="center",
+            ha="left",
         )
 
     ax.axvline(0, color=AXIS, linewidth=1.2, zorder=1)
@@ -152,7 +185,9 @@ def lift_forest(summary: pd.DataFrame, path: str | None = None, title: str = "Re
     return _save(fig, path)
 
 
-def metric_bars(summary: pd.DataFrame, path: str | None = None, title: str = "Metric levels by variant"):
+def metric_bars(
+    summary: pd.DataFrame, path: str | None = None, title: str = "Metric levels by variant"
+):
     """Absolute level of each metric in both arms, side by side."""
     apply_style()
     n = len(summary)
@@ -167,8 +202,13 @@ def metric_bars(summary: pd.DataFrame, path: str | None = None, title: str = "Me
     for i, row in summary.reset_index(drop=True).iterrows():
         for offset, key in ((-width / 2 - gap / 2, "control"), (width / 2 + gap / 2, "treatment")):
             ax.text(
-                i + offset, row[key], f"{row[key]:.4g}", ha="center", va="bottom",
-                fontsize=8.5, color=INK_SECONDARY,
+                i + offset,
+                row[key],
+                f"{row[key]:.4g}",
+                ha="center",
+                va="bottom",
+                fontsize=8.5,
+                color=INK_SECONDARY,
             )
 
     ax.set_xticks(x)
@@ -195,18 +235,28 @@ def power_curve_plot(
     ax.plot(curve["effect_relative"], curve["power"], color=CONTROL, linewidth=2, zorder=3)
     ax.axhline(target_power, color=MUTED, linewidth=1, linestyle="--", zorder=2)
     ax.text(
-        curve["effect_relative"].max(), target_power + 0.02,
-        f"target power {target_power:.0%}", fontsize=8.5, color=MUTED, ha="right",
+        curve["effect_relative"].max(),
+        target_power + 0.02,
+        f"target power {target_power:.0%}",
+        fontsize=8.5,
+        color=MUTED,
+        ha="right",
     )
 
     if mde is not None:
         ax.axvline(mde, color=TREATMENT, linewidth=1.6, zorder=2)
         ax.text(mde, 0.04, f"  MDE {mde:+.1%}", fontsize=9, color=TREATMENT, ha="left")
     if observed_effect is not None:
-        ax.axvline(abs(observed_effect), color=INK_SECONDARY, linewidth=1.2, linestyle=":", zorder=2)
+        ax.axvline(
+            abs(observed_effect), color=INK_SECONDARY, linewidth=1.2, linestyle=":", zorder=2
+        )
         ax.text(
-            abs(observed_effect), 0.92, f"observed {observed_effect:+.2%}  ",
-            fontsize=9, color=INK_SECONDARY, ha="right",
+            abs(observed_effect),
+            0.92,
+            f"observed {observed_effect:+.2%}  ",
+            fontsize=9,
+            color=INK_SECONDARY,
+            ha="right",
         )
 
     ax.set_xlabel("True relative effect")
@@ -214,7 +264,11 @@ def power_curve_plot(
     ax.xaxis.set_major_formatter(lambda v, _: f"{v:.0%}")
     ax.yaxis.set_major_formatter(lambda v, _: f"{v:.0%}")
     ax.set_ylim(0, 1.02)
-    _title(ax, title, "Effects to the left of the orange line are not reliably detectable with this traffic")
+    _title(
+        ax,
+        title,
+        "Effects to the left of the orange line are not reliably detectable with this traffic",
+    )
     fig.tight_layout()
     return _save(fig, path)
 
@@ -237,13 +291,20 @@ def posterior_plot(
     ax.set_xlabel("Relative lift (95% credible interval)")
     ax.grid(axis="y", visible=False)
     ax.text(
-        med, 0.12,
+        med,
+        0.12,
         f"P(treatment better) = {bayes.prob_treatment_better:.1%}",
-        ha="center", fontsize=9.5, color=INK,
+        ha="center",
+        fontsize=9.5,
+        color=INK,
     )
     ax.text(
-        med, -0.2, f"median {med:+.2%}   expected loss if shipped {bayes.expected_loss_treatment:.4f}",
-        ha="center", fontsize=8.5, color=INK_SECONDARY,
+        med,
+        -0.2,
+        f"median {med:+.2%}   expected loss if shipped {bayes.expected_loss_treatment:.4f}",
+        ha="center",
+        fontsize=8.5,
+        color=INK_SECONDARY,
     )
     _title(ax, title, f"Beta-Binomial posterior, {bayes.metric}")
     fig.tight_layout()
@@ -260,15 +321,19 @@ def null_distribution_plot(
     ax.hist(null, bins=60, color=CONTROL, alpha=0.85, edgecolor=SURFACE, linewidth=0.5)
     ax.axvline(permutation.observed_diff, color=TREATMENT, linewidth=2, zorder=3)
     ax.text(
-        permutation.observed_diff, ax.get_ylim()[1] * 0.92,
+        permutation.observed_diff,
+        ax.get_ylim()[1] * 0.92,
         f"  observed {permutation.observed_diff:+.4g}\n  p = {permutation.p_value:.4f}",
-        color=TREATMENT, fontsize=9, va="top",
+        color=TREATMENT,
+        fontsize=9,
+        va="top",
     )
     ax.set_xlabel(f"Difference in {permutation.statistic_name} under random re-assignment")
     ax.set_ylabel("Permutations")
     ax.grid(axis="x", visible=False)
     _title(
-        ax, title,
+        ax,
+        title,
         f"{permutation.n_permutations:,} random re-assignments of the same units",
     )
     fig.tight_layout()
@@ -276,23 +341,49 @@ def null_distribution_plot(
 
 
 def sequential_plot(
-    looks: pd.DataFrame, path: str | None = None, title: str = "Peeking: sequential boundary vs fixed threshold"
+    looks: pd.DataFrame,
+    path: str | None = None,
+    title: str = "Peeking: sequential boundary vs fixed threshold",
 ):
     """Z-score at each interim look against the alpha-spending boundary."""
     apply_style()
     fig, ax = plt.subplots(figsize=(7.6, 4.4))
     x = looks["information_fraction"]
-    ax.plot(x, looks["z_critical"], color=MUTED, linewidth=1.6, linestyle="--", label="Sequential boundary")
+    ax.plot(
+        x,
+        looks["z_critical"],
+        color=MUTED,
+        linewidth=1.6,
+        linestyle="--",
+        label="Sequential boundary",
+    )
     ax.plot(x, -looks["z_critical"], color=MUTED, linewidth=1.6, linestyle="--")
     ax.axhline(1.96, color=AXIS, linewidth=1.2, label="Fixed-horizon 1.96")
     ax.axhline(-1.96, color=AXIS, linewidth=1.2)
-    ax.plot(x, looks["z_score"], color=CONTROL, linewidth=2, marker="o", markersize=7,
-            markeredgecolor=SURFACE, markeredgewidth=1.5, label="Observed z", zorder=3)
+    ax.plot(
+        x,
+        looks["z_score"],
+        color=CONTROL,
+        linewidth=2,
+        marker="o",
+        markersize=7,
+        markeredgecolor=SURFACE,
+        markeredgewidth=1.5,
+        label="Observed z",
+        zorder=3,
+    )
 
     for _, row in looks.iterrows():
         if row["stop_naive"] and not row["stop_sequential"]:
-            ax.scatter([row["information_fraction"]], [row["z_score"]], s=150,
-                       facecolor="none", edgecolor=WARNING, linewidth=2, zorder=4)
+            ax.scatter(
+                [row["information_fraction"]],
+                [row["z_score"]],
+                s=150,
+                facecolor="none",
+                edgecolor=WARNING,
+                linewidth=2,
+                zorder=4,
+            )
 
     ax.set_xlabel("Information fraction (share of planned sample collected)")
     ax.set_ylabel("z-score")
@@ -347,13 +438,28 @@ def segment_forest(
 
     fig, ax = plt.subplots(figsize=(7.6, 1.0 + 0.5 * len(df)))
     for i, row in df.iterrows():
-        colour = CRITICAL if (row["significant"] and row["relative_diff"] < 0) else (
-            GOOD if row["significant"] else MUTED
+        colour = (
+            CRITICAL
+            if (row["significant"] and row["relative_diff"] < 0)
+            else (GOOD if row["significant"] else MUTED)
         )
-        ax.plot([row["rel_ci_low"], row["rel_ci_high"]], [i, i], color=colour, linewidth=2,
-                solid_capstyle="round", zorder=2)
-        ax.scatter([row["relative_diff"]], [i], s=54, color=colour, edgecolor=SURFACE,
-                   linewidth=1.6, zorder=3)
+        ax.plot(
+            [row["rel_ci_low"], row["rel_ci_high"]],
+            [i, i],
+            color=colour,
+            linewidth=2,
+            solid_capstyle="round",
+            zorder=2,
+        )
+        ax.scatter(
+            [row["relative_diff"]],
+            [i],
+            s=54,
+            color=colour,
+            edgecolor=SURFACE,
+            linewidth=1.6,
+            zorder=3,
+        )
     ax.axvline(0, color=AXIS, linewidth=1.2)
     ax.set_yticks(np.arange(len(df)))
     ax.set_yticklabels([f"{r['dimension']} = {r['segment']}" for _, r in df.iterrows()], fontsize=9)
@@ -361,7 +467,8 @@ def segment_forest(
     ax.set_xlabel("Relative change vs control (95% CI)")
     ax.grid(axis="y", visible=False)
     _title(
-        ax, title or f"{metric} by segment",
+        ax,
+        title or f"{metric} by segment",
         "Exploratory: p-values corrected across all segments (Benjamini-Hochberg)",
     )
     fig.tight_layout()

@@ -9,6 +9,7 @@ What gets logged is chosen for operability: the start and end of anything
 slow enough for a user to wonder whether it hung, and every trust-check
 failure, since that is the event someone will have to explain afterwards.
 """
+
 from __future__ import annotations
 
 import json
@@ -41,7 +42,10 @@ class JsonFormatter(logging.Formatter):
             payload["exception"] = self.formatException(record.exc_info)
         # Anything passed through `extra=` lands on the record; carry it over.
         for key, value in record.__dict__.items():
-            if key not in logging.LogRecord("", 0, "", 0, "", None, None).__dict__ and key not in payload:
+            if (
+                key not in logging.LogRecord("", 0, "", 0, "", None, None).__dict__
+                and key not in payload
+            ):
                 payload[key] = value
         return json.dumps(payload, default=str)
 
@@ -80,7 +84,9 @@ def log_duration(logger: logging.Logger, message: str, **fields):
     try:
         yield
     except Exception:
-        logger.exception("%s failed after %.2fs", message, time.perf_counter() - start, extra=fields)
+        logger.exception(
+            "%s failed after %.2fs", message, time.perf_counter() - start, extra=fields
+        )
         raise
     else:
         logger.info("%s in %.2fs", message, time.perf_counter() - start, extra=fields)

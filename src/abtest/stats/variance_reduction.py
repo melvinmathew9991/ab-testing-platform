@@ -4,6 +4,7 @@ Both techniques buy sensitivity: CUPED by removing pre-experiment variance,
 winsorization by stopping a handful of extreme users from dominating the
 mean. Neither changes what is being estimated when applied to both arms.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,10 +1,12 @@
 """Sample size, MDE and power curves, checked against closed-form results."""
+
 from __future__ import annotations
 
 import numpy as np
 import pytest
 from scipy import stats
 
+from abtest.exceptions import ConfigurationError
 from abtest.stats.power import (
     mde_for_sample,
     power_curve,
@@ -12,7 +14,6 @@ from abtest.stats.power import (
     sample_size_means,
     sample_size_proportions,
 )
-from abtest.exceptions import ConfigurationError
 
 
 class TestPower:

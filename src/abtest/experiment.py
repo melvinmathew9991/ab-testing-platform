@@ -4,6 +4,7 @@
 test, correct, decide - so that no experiment gets a bespoke analysis that
 happens to favour the desired outcome.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -63,7 +64,9 @@ class MetricOutcome:
         lo, hi = t.relative_ci
         return {
             "metric": self.spec.name,
-            "role": "primary" if self.spec.primary else ("guardrail" if self.spec.guardrail else "secondary"),
+            "role": "primary"
+            if self.spec.primary
+            else ("guardrail" if self.spec.guardrail else "secondary"),
             "method": t.method,
             "control": t.mean_control,
             "treatment": t.mean_treatment,
@@ -268,7 +271,9 @@ class Experiment:
             control, treatment = cuped.adjusted_control, cuped.adjusted_treatment
             logger.info(
                 "CUPED on %s: theta=%.4f, variance reduced %.1f%%",
-                spec.name, cuped.theta, cuped.variance_reduction * 100,
+                spec.name,
+                cuped.theta,
+                cuped.variance_reduction * 100,
             )
 
         test = welch_ttest(
@@ -327,7 +332,10 @@ class Experiment:
         cfg = self.config
         logger.info(
             "Analysing %s: %d metrics, resample=%s, segments=%s",
-            cfg.name, len(cfg.metrics), resample, segment_by or [],
+            cfg.name,
+            len(cfg.metrics),
+            resample,
+            segment_by or [],
         )
         checks = run_all_checks(self.data)
         for check in checks:
@@ -348,7 +356,7 @@ class Experiment:
             alpha=cfg.alpha,
             labels=[o.spec.name for o in outcomes],
         )
-        for outcome, (_, row) in zip(outcomes, adjusted.iterrows()):
+        for outcome, (_, row) in zip(outcomes, adjusted.iterrows(), strict=True):
             outcome.p_adjusted = float(row["p_adjusted"])
             outcome.significant_adjusted = bool(row["significant"])
 
@@ -366,9 +374,7 @@ class Experiment:
             outcomes=outcomes,
             segments=segments,
         )
-        logger.info(
-            "Decision for %s: %s", cfg.name, self.results.decision()["recommendation"]
-        )
+        logger.info("Decision for %s: %s", cfg.name, self.results.decision()["recommendation"])
         return self.results
 
     # ------------------------------------------------------------------
@@ -402,8 +408,12 @@ class Experiment:
                     try:
                         if spec.type == "binary":
                             res = proportion_test(
-                                int(c.sum()), c.size, int(t.sum()), t.size,
-                                alpha=cfg.alpha, metric=spec.name,
+                                int(c.sum()),
+                                c.size,
+                                int(t.sum()),
+                                t.size,
+                                alpha=cfg.alpha,
+                                metric=spec.name,
                             )
                         else:
                             res = welch_ttest(c, t, alpha=cfg.alpha, metric=spec.name)

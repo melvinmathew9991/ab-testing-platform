@@ -4,6 +4,7 @@ The toolkit works on one row per randomisation unit - usually a user. Getting
 that contract right is most of the battle: duplicated units, unexpected
 variant labels or missing metrics all quietly corrupt a test.
 """
+
 from __future__ import annotations
 
 import os
@@ -40,7 +41,7 @@ class ExperimentData:
     @classmethod
     def from_dataframe(
         cls, df: pd.DataFrame, config: ExperimentConfig, validate: bool = True
-    ) -> "ExperimentData":
+    ) -> ExperimentData:
         data = cls(df=df.copy(), config=config)
         if validate:
             data.validate()
@@ -49,7 +50,7 @@ class ExperimentData:
     @classmethod
     def from_file(
         cls, path: str | os.PathLike, config: ExperimentConfig, **read_kwargs
-    ) -> "ExperimentData":
+    ) -> ExperimentData:
         """Load a CSV or Parquet file of unit-level data."""
         path = str(path)
         if path.endswith(".parquet"):
@@ -60,7 +61,7 @@ class ExperimentData:
             raise ConfigurationError(f"Unsupported file type: {path}")
         return cls.from_dataframe(df, config)
 
-    def validate(self) -> "ExperimentData":
+    def validate(self) -> ExperimentData:
         """Enforce the data contract; fatal problems raise, the rest are logged."""
         cfg = self.config
         df = self.df
@@ -116,12 +117,11 @@ class ExperimentData:
             n_null = int(col.isna().sum())
             if n_null:
                 self.issues.append(
-                    f"Metric {metric.name!r}: {n_null:,} missing values "
-                    f"({n_null / len(df):.2%})"
+                    f"Metric {metric.name!r}: {n_null:,} missing values ({n_null / len(df):.2%})"
                 )
             if metric.type == "binary":
                 values = set(pd.unique(col.dropna()))
-                if not values.issubset({0, 1, True, False}):
+                if not values.issubset({0, 1}):
                     raise DataValidationError(
                         f"Binary metric {metric.name!r} holds non-binary values: "
                         f"{sorted(values)[:5]}"
@@ -136,7 +136,11 @@ class ExperimentData:
         }
         logger.info(
             "Validated %s: %d units across %s, %d metrics, %d issues",
-            cfg.name, len(self.df), cfg.variants, len(cfg.metrics), len(self.issues),
+            cfg.name,
+            len(self.df),
+            cfg.variants,
+            len(cfg.metrics),
+            len(self.issues),
         )
         for issue in self.issues:
             logger.warning("Data quality issue in %s: %s", cfg.name, issue)

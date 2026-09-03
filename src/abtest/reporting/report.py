@@ -4,6 +4,7 @@ The HTML report embeds its figures, so a single file can be attached to a
 ticket or emailed without breaking. The Markdown report is for pull requests
 and READMEs.
 """
+
 from __future__ import annotations
 
 import base64
@@ -107,7 +108,8 @@ def _metrics_table(summary: pd.DataFrame) -> str:
             f"<td class='num'>{_fmt(r['control'])}</td>"
             f"<td class='num'>{_fmt(r['treatment'])}</td>"
             f"<td class='num'>{_fmt(r['relative_diff'], 'pct')}</td>"
-            f"<td class='num'>{_fmt(r['rel_ci_low'], 'pct')} to {_fmt(r['rel_ci_high'], 'pct')}</td>"
+            f"<td class='num'>{_fmt(r['rel_ci_low'], 'pct')} to "
+            f"{_fmt(r['rel_ci_high'], 'pct')}</td>"
             f"<td class='num'>{_fmt(r['p_adjusted'], 'p')}</td>"
             f"<td><span class='tag {tag}'>{escape(str(r['verdict']))}</span></td>"
             "</tr>"
@@ -167,25 +169,39 @@ def build_html_report(
     p0 = primary[0]
 
     kpis = [
-        ("Units analysed", f"{sum(results.counts.values()):,}",
-         " / ".join(f"{k} {v:,}" for k, v in results.counts.items())),
+        (
+            "Units analysed",
+            f"{sum(results.counts.values()):,}",
+            " / ".join(f"{k} {v:,}" for k, v in results.counts.items()),
+        ),
         (f"{p0.spec.name} (control)", _fmt(p0.test.mean_control, "pct0"), "baseline"),
-        ("Observed lift", _fmt(p0.test.relative_diff, "pct"),
-         f"95% CI {_fmt(p0.test.relative_ci[0], 'pct')} to {_fmt(p0.test.relative_ci[1], 'pct')}"),
-        ("Smallest detectable lift",
-         _fmt(p0.test.mde_absolute / p0.test.mean_control, "pct0") if p0.test.mean_control else "-",
-         f"at {cfg.power:.0%} power, alpha {cfg.alpha}"),
+        (
+            "Observed lift",
+            _fmt(p0.test.relative_diff, "pct"),
+            f"95% CI {_fmt(p0.test.relative_ci[0], 'pct')} to "
+            f"{_fmt(p0.test.relative_ci[1], 'pct')}",
+        ),
+        (
+            "Smallest detectable lift",
+            _fmt(p0.test.mde_absolute / p0.test.mean_control, "pct0")
+            if p0.test.mean_control
+            else "-",
+            f"at {cfg.power:.0%} power, alpha {cfg.alpha}",
+        ),
     ]
     kpi_html = "".join(
-        f"<div class='kpi'><div class='label'>{escape(l)}</div>"
-        f"<div class='value'>{escape(v)}</div><div class='note'>{escape(n)}</div></div>"
-        for l, v, n in kpis
+        f"<div class='kpi'><div class='label'>{escape(label)}</div>"
+        f"<div class='value'>{escape(value)}</div>"
+        f"<div class='note'>{escape(note)}</div></div>"
+        for label, value, note in kpis
     )
 
     fig_html = ""
     for caption, path in figures or []:
         if path and os.path.exists(path):
-            fig_html += f"<figure>{_img_tag(path)}<figcaption>{escape(caption)}</figcaption></figure>"
+            fig_html += (
+                f"<figure>{_img_tag(path)}<figcaption>{escape(caption)}</figcaption></figure>"
+            )
 
     extra = ""
     for heading, html in (narrative or {}).items():
@@ -193,14 +209,22 @@ def build_html_report(
 
     segments_html = ""
     if results.segments is not None and not results.segments.empty:
-        cols = ["dimension", "segment", "metric", "n_control", "n_treatment",
-                "relative_diff", "p_value", "p_adjusted", "significant"]
+        cols = [
+            "dimension",
+            "segment",
+            "metric",
+            "n_control",
+            "n_treatment",
+            "relative_diff",
+            "p_value",
+            "p_adjusted",
+            "significant",
+        ]
         segments_html = (
             "<h2>Segments</h2>"
             "<p class='sub'>Exploratory only. Every segment test below is part of one "
             "Benjamini-Hochberg family, so the corrected p-value already accounts for "
-            "how many slices were inspected.</p>"
-            + _frame_table(results.segments[cols])
+            "how many slices were inspected.</p>" + _frame_table(results.segments[cols])
         )
 
     html = f"""<!doctype html>
@@ -209,11 +233,12 @@ def build_html_report(
 <title>{escape(cfg.name)} - experiment report</title>
 <style>{_CSS}</style></head><body><div class="wrap">
 <h1>{escape(cfg.name)}</h1>
-<p class="sub">{escape((cfg.hypothesis or 'Experiment analysis').strip())} &middot; generated {escape(results.run_at)}</p>
+<p class="sub">{escape((cfg.hypothesis or "Experiment analysis").strip())}
+&middot; generated {escape(results.run_at)}</p>
 
 <div class="card banner" style="--accent:{accent}">
-  <div class="verdict">Recommendation: {escape(decision['recommendation'])}</div>
-  <div>{escape(decision['reason'])}</div>
+  <div class="verdict">Recommendation: {escape(decision["recommendation"])}</div>
+  <div>{escape(decision["reason"])}</div>
 </div>
 
 <div class="kpis">{kpi_html}</div>

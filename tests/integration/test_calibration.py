@@ -11,6 +11,7 @@ product description, so it asserts on the number the user is promised.
 
 Every simulation is seeded, so failures are reproducible rather than flaky.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -22,7 +23,6 @@ from abtest.data import ExperimentData
 from abtest.experiment import Experiment
 from abtest.stats.frequentist import proportion_test, welch_ttest
 from abtest.stats.multiple_testing import adjust_pvalues
-
 from tests.conftest import make_config, make_data
 
 ALPHA = 0.05
@@ -48,7 +48,7 @@ class TestNullCalibration:
 
         rejections = sum(
             proportion_test(int(c), n_per_arm, int(t), n_per_arm, alpha=ALPHA).significant
-            for c, t in zip(control, treatment)
+            for c, t in zip(control, treatment, strict=True)
         )
         rate_observed = rejections / n_sims
         low, high = _binomial_bounds(n_sims)
@@ -74,8 +74,10 @@ class TestNullCalibration:
         p_values = np.array(
             [
                 proportion_test(
-                    int(rng.binomial(n_per_arm, rate)), n_per_arm,
-                    int(rng.binomial(n_per_arm, rate)), n_per_arm,
+                    int(rng.binomial(n_per_arm, rate)),
+                    n_per_arm,
+                    int(rng.binomial(n_per_arm, rate)),
+                    n_per_arm,
                 ).p_value
                 for _ in range(n_sims)
             ]
@@ -93,8 +95,10 @@ class TestNullCalibration:
         for _ in range(n_sims):
             p_values = [
                 proportion_test(
-                    int(rng.binomial(n_per_arm, rate)), n_per_arm,
-                    int(rng.binomial(n_per_arm, rate)), n_per_arm,
+                    int(rng.binomial(n_per_arm, rate)),
+                    n_per_arm,
+                    int(rng.binomial(n_per_arm, rate)),
+                    n_per_arm,
                 ).p_value
                 for _ in range(n_metrics)
             ]
@@ -132,9 +136,7 @@ class TestPipelineCalibration:
     def test_pipeline_finds_a_real_effect_it_is_powered_for(self):
         """The mirror of the test above: calibration is worthless without power."""
         n_sims = 60
-        config = make_config(
-            metrics=[MetricSpec("converted", "converted", "binary", primary=True)]
-        )
+        config = make_config(metrics=[MetricSpec("converted", "converted", "binary", primary=True)])
         detected = 0
         for seed in range(n_sims):
             data = ExperimentData.from_dataframe(
