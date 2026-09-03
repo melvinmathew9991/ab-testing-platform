@@ -1,0 +1,48 @@
+# Cookie Cats gate placement experiment.
+#
+# Decision rules are fixed here, before the analysis runs: which metrics
+# decide the launch, how much error is acceptable, and how the family of
+# tests is corrected. Changing this file changes the experiment - it is the
+# artefact to review, not the notebook.
+
+name: Cookie Cats - first gate at level 30 vs level 40
+hypothesis: >
+  Moving the first progression gate from level 30 to level 40 lets players go
+  deeper before they are blocked, which should increase the share of players
+  who come back on day 1 and day 7.
+
+unit_col: userid
+variant_col: version
+control: gate_30
+treatment: gate_40
+
+alpha: 0.05
+power: 0.80
+expected_split: [0.5, 0.5]
+multiple_testing: bh
+n_bootstrap: 10000
+n_permutations: 10000
+seed: 42
+
+metrics:
+  - name: retention_1
+    column: retention_1
+    type: binary
+    direction: increase
+    primary: true
+
+  - name: retention_7
+    column: retention_7
+    type: binary
+    direction: increase
+    primary: true
+
+  # Engagement is a guardrail: the gate change should not cost play volume,
+  # but it is not what the launch decision is made on. The 99th-percentile
+  # cap keeps a handful of extreme players from driving the mean.
+  - name: game_rounds
+    column: sum_gamerounds
+    type: continuous
+    direction: increase
+    guardrail: true
+    winsorize_quantile: 0.99

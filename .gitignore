@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Fetched on demand by analysis/fetch_data.py
+data/raw/
+
+# Reports and figures ARE committed - they are the showcase output.
+# Rebuild them with: python analysis/run_cookie_cats.py
+
+abtest.egg-info/
+
+# Generated artefacts
+*.pkl
+outputs/
