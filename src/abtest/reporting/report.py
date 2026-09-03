@@ -14,6 +14,9 @@ import numpy as np
 import pandas as pd
 
 from abtest.experiment import ExperimentResults
+from abtest.log import get_logger
+
+logger = get_logger(__name__)
 
 _CSS = """
 :root { color-scheme: light; }
@@ -239,8 +242,13 @@ seed {cfg.seed} &middot; every number here is reproducible from
 </div></body></html>"""
 
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as fh:
-        fh.write(html)
+    try:
+        with open(output_path, "w", encoding="utf-8") as fh:
+            fh.write(html)
+    except OSError as exc:
+        logger.error("Could not write HTML report to %s: %s", output_path, exc)
+        raise
+    logger.info("Wrote HTML report to %s (%d figures)", output_path, len(figures or []))
     return output_path
 
 

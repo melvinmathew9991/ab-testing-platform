@@ -10,6 +10,12 @@ from dataclasses import dataclass, asdict
 import numpy as np
 from scipy import stats
 
+from abtest.exceptions import (
+    ConfigurationError,
+    DataValidationError,
+    InsufficientDataError,
+)
+
 Alternative = str  # one of: two-sided, larger, smaller
 
 
@@ -70,7 +76,7 @@ def _pvalue_from_z(z: float, alternative: Alternative) -> float:
         return float(stats.norm.sf(z))
     if alternative == "smaller":
         return float(stats.norm.cdf(z))
-    raise ValueError(f"Unknown alternative {alternative!r}")
+    raise ConfigurationError(f"Unknown alternative {alternative!r}")
 
 
 def _pvalue_from_t(t_stat: float, dof: float, alternative: Alternative) -> float:
@@ -80,7 +86,7 @@ def _pvalue_from_t(t_stat: float, dof: float, alternative: Alternative) -> float
         return float(stats.t.sf(t_stat, dof))
     if alternative == "smaller":
         return float(stats.t.cdf(t_stat, dof))
-    raise ValueError(f"Unknown alternative {alternative!r}")
+    raise ConfigurationError(f"Unknown alternative {alternative!r}")
 
 
 def proportion_test(
@@ -101,9 +107,9 @@ def proportion_test(
     point estimate.
     """
     if min(n_control, n_treatment) <= 0:
-        raise ValueError("Both variants need at least one unit")
+        raise InsufficientDataError("Both variants need at least one unit")
     if conversions_control > n_control or conversions_treatment > n_treatment:
-        raise ValueError("Conversions cannot exceed the number of units")
+        raise DataValidationError("Conversions cannot exceed the number of units")
 
     p0 = conversions_control / n_control
     p1 = conversions_treatment / n_treatment
@@ -172,7 +178,7 @@ def welch_ttest(
 
     n0, n1 = control.size, treatment.size
     if min(n0, n1) < 2:
-        raise ValueError("Welch's t-test needs at least two observations per variant")
+        raise InsufficientDataError("Welch's t-test needs at least two observations per variant")
 
     m0, m1 = float(control.mean()), float(treatment.mean())
     v0, v1 = float(control.var(ddof=1)), float(treatment.var(ddof=1))

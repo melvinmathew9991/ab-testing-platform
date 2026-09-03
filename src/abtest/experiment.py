@@ -15,6 +15,8 @@ import pandas as pd
 from abtest.checks import CheckResult, checks_to_frame, run_all_checks, segment_balance
 from abtest.config import ExperimentConfig, MetricSpec
 from abtest.data import ExperimentData
+from abtest.exceptions import ConfigurationError, UnsupportedMetricError
+from abtest.log import get_logger, log_duration
 from abtest.stats.bayesian import BayesianResult, beta_binomial_test
 from abtest.stats.bootstrap import (
     BootstrapResult,
@@ -26,6 +28,8 @@ from abtest.stats.frequentist import TestResult, proportion_test, welch_ttest
 from abtest.stats.multiple_testing import adjust_pvalues
 from abtest.stats.power import mde_for_sample
 from abtest.stats.variance_reduction import CupedResult, cuped_adjust, winsorize
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -287,9 +291,18 @@ class Experiment:
                 corrected and should never on their own justify shipping.
         """
         cfg = self.config
+        logger.info(
+            "Analysing %s: %d metrics, resample=%s, segments=%s",
+            cfg.name, len(cfg.metrics), resample, segment_by or [],
+        )
         checks = run_all_checks(self.data)
+        for check in checks:
+            if not check.passed:
+                log = logger.error if check.severity == "critical" else logger.warning
+                log("Check %s: %s", check.status, check.message)
 
-        outcomes = [self._test_metric(m) for m in cfg.metrics]
+        with log_duration(logger, f"Tested {len(cfg.metrics)} metrics"):
+            outcomes = [self._test_metric(m) for m in cfg.metrics]
         if resample:
             for o in outcomes:
                 if o.spec.type == "continuous":
@@ -317,6 +330,9 @@ class Experiment:
             checks=checks,
             outcomes=outcomes,
             segments=segments,
+        )
+        logger.info(
+            "Decision for %s: %s", cfg.name, self.results.decision()["recommendation"]
         )
         return self.results
 
@@ -389,7 +405,10 @@ class Experiment:
         counts = self.data.counts()
         baseline = float(np.nanmean(self.data.values(spec, cfg.control)))
         if spec.type != "binary":
-            raise ValueError("Sensitivity is defined here for binary metrics only")
+            raise UnsupportedMetricError(
+                f"Sensitivity is implemented for binary metrics; {spec.name!r} is "
+                f"{spec.type}. Use stats.power.sample_size_means for continuous metrics."
+            )
         return mde_for_sample(
             baseline,
             counts[cfg.control],

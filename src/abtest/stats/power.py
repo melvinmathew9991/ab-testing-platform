@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from abtest.exceptions import ConfigurationError
+
 
 def sample_size_proportions(
     baseline_rate: float,
@@ -34,18 +36,18 @@ def sample_size_proportions(
         Dict with ``n_control``, ``n_treatment`` and ``n_total``.
     """
     if not 0 < baseline_rate < 1:
-        raise ValueError("baseline_rate must be in (0, 1)")
+        raise ConfigurationError("baseline_rate must be in (0, 1)")
     if mde_absolute is None:
         if mde_relative is None:
-            raise ValueError("Provide either mde_relative or mde_absolute")
+            raise ConfigurationError("Provide either mde_relative or mde_absolute")
         mde_absolute = baseline_rate * mde_relative
     if mde_absolute == 0:
-        raise ValueError("The minimum detectable effect cannot be zero")
+        raise ConfigurationError("The minimum detectable effect cannot be zero")
 
     p0 = baseline_rate
     p1 = p0 + mde_absolute
     if not 0 < p1 < 1:
-        raise ValueError("baseline + effect must stay within (0, 1)")
+        raise ConfigurationError("baseline + effect must stay within (0, 1)")
 
     z_alpha = stats.norm.ppf(1 - alpha / 2) if alternative == "two-sided" else stats.norm.ppf(1 - alpha)
     z_beta = stats.norm.ppf(power)
@@ -77,7 +79,7 @@ def sample_size_means(
 ) -> dict:
     """Units per variant needed to detect ``mde_absolute`` on a continuous metric."""
     if std <= 0:
-        raise ValueError("std must be positive")
+        raise ConfigurationError("std must be positive")
     z_alpha = stats.norm.ppf(1 - alpha / 2)
     z_beta = stats.norm.ppf(power)
     n_control = ((z_alpha + z_beta) ** 2 * std**2 * (1 + 1 / ratio)) / mde_absolute**2

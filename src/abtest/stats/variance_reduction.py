@@ -10,6 +10,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from abtest.exceptions import ConfigurationError, DataValidationError
+
 
 @dataclass
 class CupedResult:
@@ -62,7 +64,7 @@ def cuped_adjust(
     x_t = np.asarray(x_treatment, dtype=float)
 
     if y_c.shape != x_c.shape or y_t.shape != x_t.shape:
-        raise ValueError("Metric and covariate arrays must align unit by unit")
+        raise DataValidationError("Metric and covariate arrays must align unit by unit")
 
     y_all = np.concatenate([y_c, y_t])
     x_all = np.concatenate([x_c, x_t])
@@ -101,7 +103,7 @@ def winsorize(
     v = np.asarray(values, dtype=float)
     if cap is None:
         if not 0 < upper_quantile <= 1:
-            raise ValueError("upper_quantile must be in (0, 1]")
+            raise ConfigurationError("upper_quantile must be in (0, 1]")
         cap = float(np.quantile(v[~np.isnan(v)], upper_quantile))
     out = np.minimum(v, cap)
     if lower_quantile is not None:

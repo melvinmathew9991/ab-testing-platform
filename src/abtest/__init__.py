@@ -13,7 +13,15 @@ Typical use:
 __version__ = "1.0.0"
 
 from abtest.config import ExperimentConfig, MetricSpec
-from abtest.data import ExperimentData, DataValidationError
+from abtest.data import ExperimentData
+from abtest.exceptions import (
+    ABTestError,
+    ConfigurationError,
+    DataValidationError,
+    InsufficientDataError,
+    UnsupportedMetricError,
+)
+from abtest.log import configure_logging, get_logger
 from abtest.experiment import Experiment, ExperimentResults, MetricOutcome
 from abtest.checks import CheckResult, run_all_checks
 
@@ -22,7 +30,13 @@ __all__ = [
     "ExperimentConfig",
     "MetricSpec",
     "ExperimentData",
+    "ABTestError",
+    "ConfigurationError",
     "DataValidationError",
+    "InsufficientDataError",
+    "UnsupportedMetricError",
+    "configure_logging",
+    "get_logger",
     "Experiment",
     "ExperimentResults",
     "MetricOutcome",

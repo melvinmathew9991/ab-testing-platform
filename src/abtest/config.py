@@ -11,6 +11,8 @@ from typing import Literal, Sequence
 
 import yaml
 
+from abtest.exceptions import ConfigurationError
+
 MetricType = Literal["binary", "continuous"]
 Direction = Literal["increase", "decrease"]
 
@@ -44,14 +46,14 @@ class MetricSpec:
 
     def __post_init__(self) -> None:
         if self.type not in ("binary", "continuous"):
-            raise ValueError(f"Unknown metric type {self.type!r}")
+            raise ConfigurationError(f"Unknown metric type {self.type!r}")
         if self.direction not in ("increase", "decrease"):
-            raise ValueError(f"Unknown direction {self.direction!r}")
+            raise ConfigurationError(f"Unknown direction {self.direction!r}")
         if self.winsorize_quantile is not None:
             if not 0 < self.winsorize_quantile <= 1:
-                raise ValueError("winsorize_quantile must be in (0, 1]")
+                raise ConfigurationError("winsorize_quantile must be in (0, 1]")
             if self.type != "continuous":
-                raise ValueError("Winsorizing only applies to continuous metrics")
+                raise ConfigurationError("Winsorizing only applies to continuous metrics")
 
 
 @dataclass
@@ -82,13 +84,13 @@ class ExperimentConfig:
             m if isinstance(m, MetricSpec) else MetricSpec(**m) for m in self.metrics
         ]
         if not 0 < self.alpha < 1:
-            raise ValueError("alpha must be in (0, 1)")
+            raise ConfigurationError("alpha must be in (0, 1)")
         if not 0 < self.power < 1:
-            raise ValueError("power must be in (0, 1)")
+            raise ConfigurationError("power must be in (0, 1)")
         if abs(sum(self.expected_split) - 1) > 1e-9:
-            raise ValueError("expected_split must sum to 1")
+            raise ConfigurationError("expected_split must sum to 1")
         if not self.metrics:
-            raise ValueError("An experiment needs at least one metric")
+            raise ConfigurationError("An experiment needs at least one metric")
 
     @property
     def variants(self) -> tuple[str, str]:

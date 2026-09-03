@@ -11,6 +11,8 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
+from abtest.exceptions import ConfigurationError, DataValidationError
+
 
 def adjust_pvalues(
     p_values: Sequence[float],
@@ -36,7 +38,7 @@ def adjust_pvalues(
             columns=["label", "p_value", "p_adjusted", "significant", "method"]
         )
     if np.any((p < 0) | (p > 1)):
-        raise ValueError("p-values must lie in [0, 1]")
+        raise DataValidationError("p-values must lie in [0, 1]")
     method = method.lower()
     m = p.size
 
@@ -52,7 +54,7 @@ def adjust_pvalues(
         adjusted = np.empty_like(ranked)
         adjusted[order] = np.minimum(ranked, 1.0)
     else:
-        raise ValueError(f"Unknown correction method {method!r}")
+        raise ConfigurationError(f"Unknown correction method {method!r}")
 
     return pd.DataFrame(
         {

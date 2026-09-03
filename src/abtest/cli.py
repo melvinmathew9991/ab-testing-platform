@@ -13,6 +13,7 @@ import sys
 import pandas as pd
 
 from abtest.config import ExperimentConfig
+from abtest.log import configure_logging
 from abtest.data import ExperimentData
 from abtest.experiment import Experiment
 from abtest.reporting.report import build_html_report, build_markdown_report
@@ -109,6 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    configure_logging()
     return args.func(args)
 
 

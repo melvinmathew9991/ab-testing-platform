@@ -14,6 +14,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from abtest.exceptions import ConfigurationError, InsufficientDataError
+
 
 def obrien_fleming_spending(information_fraction: np.ndarray, alpha: float = 0.05) -> np.ndarray:
     """Cumulative alpha spent by the O'Brien-Fleming spending function."""
@@ -29,7 +31,7 @@ def obrien_fleming_boundaries(n_looks: int, alpha: float = 0.05) -> pd.DataFrame
     p-value thresholds.
     """
     if n_looks < 1:
-        raise ValueError("n_looks must be at least 1")
+        raise ConfigurationError("n_looks must be at least 1")
     t = np.arange(1, n_looks + 1) / n_looks
     cumulative = obrien_fleming_spending(t, alpha)
     incremental = np.diff(np.concatenate([[0.0], cumulative]))
@@ -83,7 +85,7 @@ def sequential_analysis(
         sequential threshold, so the two decisions can be compared directly.
     """
     if not looks:
-        raise ValueError("At least one look is required")
+        raise InsufficientDataError("At least one look is required")
 
     final_n = looks[-1]["n_control"] + looks[-1]["n_treatment"]
     planned = planned_n_total or final_n

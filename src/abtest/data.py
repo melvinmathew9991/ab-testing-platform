@@ -13,10 +13,10 @@ import numpy as np
 import pandas as pd
 
 from abtest.config import ExperimentConfig, MetricSpec
+from abtest.exceptions import ConfigurationError, DataValidationError
+from abtest.log import get_logger
 
-
-class DataValidationError(ValueError):
-    """Raised when the dataframe does not satisfy the experiment contract."""
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -55,7 +55,7 @@ class ExperimentData:
         elif path.endswith((".csv", ".csv.gz", ".txt")):
             df = pd.read_csv(path, **read_kwargs)
         else:
-            raise ValueError(f"Unsupported file type: {path}")
+            raise ConfigurationError(f"Unsupported file type: {path}")
         return cls.from_dataframe(df, config)
 
     def validate(self) -> "ExperimentData":
@@ -120,6 +120,12 @@ class ExperimentData:
                     )
 
         self.df = df.reset_index(drop=True)
+        logger.info(
+            "Validated %s: %d units across %s, %d metrics, %d issues",
+            cfg.name, len(self.df), cfg.variants, len(cfg.metrics), len(self.issues),
+        )
+        for issue in self.issues:
+            logger.warning("Data quality issue in %s: %s", cfg.name, issue)
         return self
 
     # ------------------------------------------------------------------

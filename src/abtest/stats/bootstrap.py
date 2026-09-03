@@ -11,6 +11,10 @@ from typing import Callable
 
 import numpy as np
 
+from abtest.log import get_logger, log_duration
+
+logger = get_logger(__name__)
+
 Statistic = Callable[[np.ndarray], float]
 
 
@@ -126,14 +130,15 @@ def bootstrap_ci(
 
     done = 0
     step = _batch_size(batch_size, control.size + treatment.size)
-    while done < n_bootstrap:
-        reps = min(step, n_bootstrap - done)
-        c_idx = _resample_indices(rng, control.size, control.size, reps)
-        t_idx = _resample_indices(rng, treatment.size, treatment.size, reps)
-        c_stat = _rowwise(statistic, control[c_idx])
-        t_stat = _rowwise(statistic, treatment[t_idx])
-        diffs[done : done + reps] = t_stat - c_stat
-        done += reps
+    with log_duration(logger, f"Bootstrapped {metric} ({n_bootstrap:,} resamples)"):
+        while done < n_bootstrap:
+            reps = min(step, n_bootstrap - done)
+            c_idx = _resample_indices(rng, control.size, control.size, reps)
+            t_idx = _resample_indices(rng, treatment.size, treatment.size, reps)
+            c_stat = _rowwise(statistic, control[c_idx])
+            t_stat = _rowwise(statistic, treatment[t_idx])
+            diffs[done : done + reps] = t_stat - c_stat
+            done += reps
 
     lo, hi = np.quantile(diffs, [alpha / 2, 1 - alpha / 2])
     return BootstrapResult(
@@ -174,18 +179,19 @@ def permutation_test(
 
     done = 0
     step = _batch_size(batch_size, n)
-    while done < n_permutations:
-        reps = min(step, n_permutations - done)
-        # A partition on uniform noise splits each row into a random group of
-        # size n0 and its complement - cheaper than a full sort, and a full
-        # ordering is not needed.
-        noise = rng.random((reps, n))
-        order = np.argpartition(noise, n0 - 1, axis=1)
-        shuffled = np.take_along_axis(np.broadcast_to(pooled, (reps, n)), order, axis=1)
-        c_stat = _rowwise(statistic, shuffled[:, :n0])
-        t_stat = _rowwise(statistic, shuffled[:, n0:])
-        null[done : done + reps] = t_stat - c_stat
-        done += reps
+    with log_duration(logger, f"Permuted {metric} ({n_permutations:,} permutations)"):
+        while done < n_permutations:
+            reps = min(step, n_permutations - done)
+            # A partition on uniform noise splits each row into a random group
+            # of size n0 and its complement - cheaper than a full sort, and a
+            # full ordering is not needed.
+            noise = rng.random((reps, n))
+            order = np.argpartition(noise, n0 - 1, axis=1)
+            shuffled = np.take_along_axis(np.broadcast_to(pooled, (reps, n)), order, axis=1)
+            c_stat = _rowwise(statistic, shuffled[:, :n0])
+            t_stat = _rowwise(statistic, shuffled[:, n0:])
+            null[done : done + reps] = t_stat - c_stat
+            done += reps
 
     extreme = int(np.sum(np.abs(null) >= abs(observed)))
     p_value = (extreme + 1) / (n_permutations + 1)
