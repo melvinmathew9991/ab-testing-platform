@@ -1,5 +1,6 @@
-# Local parity with the deployed services. Same images, same environment
-# variables, different values.
+# Local parity with the deployed services: same images, same environment
+# variables, different values. Start both with `docker compose up --build`,
+# then open http://localhost:8501.
 services:
   api:
     build:
@@ -21,3 +22,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  ui:
+    build:
+      context: .
+      dockerfile: services/ui/Dockerfile
+    image: ab-ui:local
+    ports:
+      - "8501:8501"
+    environment:
+      # Service name, not localhost: the UI resolves the API on the compose network.
+      API_URL: "http://api:8080"
+      ENVIRONMENT: development
+      MAX_UPLOAD_MB: "25"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=4).status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s

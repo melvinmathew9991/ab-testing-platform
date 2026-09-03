@@ -26,6 +26,8 @@ dev = [
     "fastapi>=0.115",
     "python-multipart>=0.0.9",
     "pydantic-settings>=2.2",
+    "streamlit>=1.40",     # AppTest drives the interface headlessly
+    "plotly>=5.20",
 ]
 
 [project.scripts]
@@ -48,7 +50,7 @@ markers = [
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-src = ["src", "tests", "analysis", "services/api"]
+src = ["src", "tests", "analysis", "services/api", "services/ui"]
 
 [tool.ruff.lint]
 # E/F: correctness and style, I: import order, B: likely bugs, UP: modern syntax
@@ -61,6 +63,10 @@ select = ["E", "F", "I", "B", "UP"]
 "analysis/*" = ["E402"]
 # The API test fixtures put the service on sys.path before importing it.
 "tests/api/*" = ["E402", "E501"]
+"tests/ui/*" = ["E402", "E501"]
 # Depends() and File() in argument defaults is the FastAPI dependency-injection
 # idiom, not the mutable-default bug B008 exists to catch.
 "services/api/app/routers/*" = ["B008"]
+# Streamlit executes the entry point as a script, so it sets up sys.path
+# before importing the package.
+"services/ui/ui/main.py" = ["E402"]
