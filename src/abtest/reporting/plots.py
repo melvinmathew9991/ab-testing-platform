@@ -92,7 +92,26 @@ def lift_forest(summary: pd.DataFrame, path: str | None = None, title: str = "Re
     """
     apply_style()
     df = summary.iloc[::-1].reset_index(drop=True)
+    # A metric with a zero baseline has no relative interval to draw. Drop
+    # those rows rather than letting NaN reach the axis limits, and say so.
+    finite = df[["relative_diff", "rel_ci_low", "rel_ci_high"]].apply(
+        pd.to_numeric, errors="coerce"
+    ).notna().all(axis=1)
+    dropped = df[~finite]["metric"].tolist()
+    df = df[finite].reset_index(drop=True)
     n = len(df)
+    if n == 0:
+        fig, ax = plt.subplots(figsize=(8.0, 2.4))
+        ax.axis("off")
+        ax.text(
+            0.5, 0.5,
+            "No metric has a relative interval to plot "
+            "(every baseline is zero)", ha="center", va="center",
+            fontsize=11, color=INK_SECONDARY,
+        )
+        _title(ax, title)
+        return _save(fig, path)
+
     fig, ax = plt.subplots(figsize=(8.0, 1.4 + 0.52 * n))
     y = np.arange(n)
     span = float(np.nanmax(df["rel_ci_high"]) - np.nanmin(df["rel_ci_low"])) or 0.02
@@ -125,7 +144,10 @@ def lift_forest(summary: pd.DataFrame, path: str | None = None, title: str = "Re
         min(float(np.nanmin(df["rel_ci_low"])) - pad * 2, -pad * 2),
         float(np.nanmax(df["rel_ci_high"])) + span * 0.75,
     )
-    _title(ax, title, "Green = significant win, red = significant regression, grey = no detectable effect")
+    subtitle = "Green = significant win, red = significant regression, grey = no detectable effect"
+    if dropped:
+        subtitle += f" | not shown (zero baseline): {', '.join(map(str, dropped))}"
+    _title(ax, title, subtitle)
     fig.tight_layout()
     return _save(fig, path)
 

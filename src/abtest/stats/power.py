@@ -96,23 +96,33 @@ def sample_size_means(
 
 def power_for_proportions(
     baseline_rate: float,
-    effect_absolute: float,
+    effect_absolute: float | np.ndarray,
     n_control: int,
     n_treatment: int | None = None,
     alpha: float = 0.05,
-) -> float:
-    """Probability of detecting ``effect_absolute`` with this much traffic."""
+) -> float | np.ndarray:
+    """Probability of detecting ``effect_absolute`` with this much traffic.
+
+    Accepts an array of effects and evaluates them in one pass, so a whole
+    power curve costs a single vectorised computation instead of one call
+    per point - this runs behind a request in the API.
+    """
     n_treatment = n_treatment or n_control
     p0 = baseline_rate
-    p1 = p0 + effect_absolute
-    if not 0 < p1 < 1:
-        return float("nan")
-    se = np.sqrt(p0 * (1 - p0) / n_control + p1 * (1 - p1) / n_treatment)
-    z_alpha = stats.norm.ppf(1 - alpha / 2)
-    # Two-sided power, both tails (the wrong-side tail is negligible but free).
-    upper = stats.norm.sf(z_alpha - abs(effect_absolute) / se)
-    lower = stats.norm.cdf(-z_alpha - abs(effect_absolute) / se)
-    return float(upper + lower)
+    effect = np.asarray(effect_absolute, dtype=float)
+    p1 = p0 + effect
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        se = np.sqrt(p0 * (1 - p0) / n_control + p1 * (1 - p1) / n_treatment)
+        z_alpha = stats.norm.ppf(1 - alpha / 2)
+        # Two-sided power, both tails (the wrong-side tail is negligible but free).
+        power = stats.norm.sf(z_alpha - np.abs(effect) / se) + stats.norm.cdf(
+            -z_alpha - np.abs(effect) / se
+        )
+    # A treatment rate outside (0, 1) is not a probability - report it as
+    # undefined rather than as a number nobody should trust.
+    power = np.where((p1 > 0) & (p1 < 1), power, np.nan)
+    return float(power) if power.ndim == 0 else power
 
 
 def mde_for_sample(
@@ -162,19 +172,17 @@ def power_curve(
     """Power as a function of true effect size, for a fixed sample size."""
     if effects_relative is None:
         effects_relative = np.linspace(0.0, 0.30, 61)
-    rows = []
-    for rel in effects_relative:
-        abs_effect = baseline_rate * rel
-        rows.append(
-            {
-                "effect_relative": float(rel),
-                "effect_absolute": float(abs_effect),
-                "power": power_for_proportions(
-                    baseline_rate, abs_effect, n_control, n_treatment, alpha
-                ),
-            }
-        )
-    return pd.DataFrame(rows)
+    effects_relative = np.asarray(effects_relative, dtype=float)
+    effects_absolute = baseline_rate * effects_relative
+    return pd.DataFrame(
+        {
+            "effect_relative": effects_relative,
+            "effect_absolute": effects_absolute,
+            "power": power_for_proportions(
+                baseline_rate, effects_absolute, n_control, n_treatment, alpha
+            ),
+        }
+    )
 
 
 def sample_size_curve(

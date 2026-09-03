@@ -91,6 +91,22 @@ class ExperimentConfig:
             raise ConfigurationError("expected_split must sum to 1")
         if not self.metrics:
             raise ConfigurationError("An experiment needs at least one metric")
+        if self.control == self.treatment:
+            raise ConfigurationError(
+                f"Control and treatment are both {self.control!r}; an experiment "
+                f"needs two distinct variants"
+            )
+        if self.unit_col == self.variant_col:
+            raise ConfigurationError(
+                f"unit_col and variant_col are both {self.unit_col!r}"
+            )
+        names = [m.name for m in self.metrics]
+        duplicates = {n for n in names if names.count(n) > 1}
+        if duplicates:
+            raise ConfigurationError(
+                f"Duplicate metric names: {sorted(duplicates)}. Names identify "
+                f"metrics in results and reports, so they must be unique"
+            )
 
     @property
     def variants(self) -> tuple[str, str]:

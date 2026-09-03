@@ -5,9 +5,19 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from abtest.checks import normal_approximation, outlier_influence, sample_ratio_mismatch
+from abtest.checks import (
+    assignment_integrity,
+    normal_approximation,
+    outlier_influence,
+    sample_ratio_mismatch,
+)
 from abtest.config import ExperimentConfig, MetricSpec
-from abtest.data import DataValidationError, ExperimentData
+from abtest.data import ExperimentData
+from abtest.exceptions import (
+    ConfigurationError,
+    DataValidationError,
+    UnsupportedMetricError,
+)
 from abtest.experiment import Experiment
 from abtest.reporting.report import build_html_report, build_markdown_report
 
@@ -74,6 +84,21 @@ class TestConfig:
         with pytest.raises(ValueError):
             make_config(metrics=[])
 
+    def test_rejects_duplicate_metric_names(self):
+        with pytest.raises(ConfigurationError, match="Duplicate metric names"):
+            make_config(metrics=[
+                MetricSpec("same", "converted", "binary"),
+                MetricSpec("same", "revenue", "continuous"),
+            ])
+
+    def test_rejects_identical_variants(self):
+        with pytest.raises(ConfigurationError, match="two distinct variants"):
+            make_config(treatment="A")
+
+    def test_rejects_unit_column_used_as_variant(self):
+        with pytest.raises(ConfigurationError):
+            make_config(variant_col="user_id")
+
     def test_rejects_bad_metric_spec(self):
         with pytest.raises(ValueError):
             MetricSpec("m", "m", type="ordinal")
@@ -103,7 +128,34 @@ class TestDataContract:
         df = pd.concat([make_data(1_000), make_data(1_000).head(50)])
         data = ExperimentData.from_dataframe(df, make_config())
         assert len(data) == 1_000
-        assert any("duplicated" in issue for issue in data.issues)
+        assert any("share a user_id" in issue for issue in data.issues)
+
+    def test_double_assignment_is_detected(self):
+        """Regression: the crossover check used to run after de-duplication,
+        so a unit present in both arms was reported as a harmless duplicate
+        and the double-assignment warning could never fire."""
+        df = make_data(1_000, seed=21)
+        crossed = df.head(40).copy()
+        crossed["variant"] = np.where(crossed["variant"] == "A", "B", "A")
+        data = ExperimentData.from_dataframe(pd.concat([df, crossed]), make_config())
+
+        assert data.double_assigned == 40
+        assert any("double assignment" in issue for issue in data.issues)
+
+    def test_no_double_assignment_reported_when_there_is_none(self):
+        df = make_data(500, seed=22)
+        duplicated_rows = df.head(20).copy()  # same unit, same arm
+        data = ExperimentData.from_dataframe(pd.concat([df, duplicated_rows]), make_config())
+        assert data.double_assigned == 0
+        assert not any("double assignment" in issue for issue in data.issues)
+
+    def test_arm_cache_matches_a_direct_filter(self):
+        data = ExperimentData.from_dataframe(make_data(2_000, seed=23), make_config())
+        for variant in ("A", "B"):
+            cached = data.arm(variant)
+            direct = data.df[data.df["variant"] == variant]
+            assert len(cached) == len(direct)
+            assert cached["user_id"].tolist() == direct["user_id"].tolist()
 
     def test_extra_variants_are_dropped_and_reported(self):
         df = make_data(2_000)
@@ -132,6 +184,25 @@ class TestChecks:
     def test_srm_respects_an_uneven_planned_split(self):
         assert sample_ratio_mismatch(9_000, 1_000, expected_split=(0.9, 0.1)).passed
         assert not sample_ratio_mismatch(5_000, 5_000, expected_split=(0.9, 0.1)).passed
+
+    def test_assignment_integrity_passes_when_arms_are_disjoint(self):
+        assert assignment_integrity(0, 10_000).passed
+
+    def test_assignment_integrity_escalates_with_the_rate(self):
+        occasional = assignment_integrity(5, 100_000)
+        systematic = assignment_integrity(500, 100_000)
+        assert not occasional.passed and occasional.severity == "warning"
+        assert not systematic.passed and systematic.severity == "critical"
+
+    def test_double_assignment_reaches_the_results(self):
+        df = make_data(2_000, seed=27)
+        crossed = df.head(300).copy()
+        crossed["variant"] = np.where(crossed["variant"] == "A", "B", "A")
+        data = ExperimentData.from_dataframe(pd.concat([df, crossed]), make_config())
+        results = Experiment(data).run()
+        assert any(c.name == "assignment_integrity" and not c.passed for c in results.checks)
+        assert results.blocking_failures
+        assert results.decision()["recommendation"] == "do not use this result"
 
     def test_outlier_influence_flags_a_dominant_tail(self):
         values = np.concatenate([np.ones(9_990), np.full(10, 1e6)])
@@ -214,6 +285,38 @@ class TestExperiment:
         assert set(results.segments["dimension"]) == {"country"}
         assert (results.segments["p_adjusted"] >= results.segments["p_value"] - 1e-12).all()
         assert any(c.name.startswith("segment_balance") for c in results.checks)
+
+    def test_cuped_runs_when_the_metric_has_missing_values(self):
+        """Regression: the metric was NaN-filtered but the covariate was not,
+        so CUPED received two arrays describing different units and raised."""
+        df = make_data(n=4_000, seed=24)
+        df["pre_revenue"] = df["revenue"] * 0.8 + 5
+        df.loc[df.index[:120], "revenue"] = np.nan
+
+        config = make_config(metrics=[
+            MetricSpec("revenue", "revenue", "continuous", primary=True,
+                       covariate="pre_revenue"),
+        ])
+        results = Experiment(ExperimentData.from_dataframe(df, config), config).run()
+        outcome = results.outcome("revenue")
+
+        assert outcome.cuped is not None
+        assert outcome.cuped.variance_reduction > 0.5
+        assert outcome.test.n_control + outcome.test.n_treatment == 4_000 - 120
+
+    def test_unknown_segment_dimension_names_the_alternatives(self):
+        data = ExperimentData.from_dataframe(make_data(2_000, seed=25), make_config())
+        with pytest.raises(ConfigurationError, match="Available columns"):
+            Experiment(data).run(segment_by=["not_a_column"])
+
+    def test_sensitivity_on_a_continuous_metric_is_reported_clearly(self):
+        config = make_config(metrics=[
+            MetricSpec("revenue", "revenue", "continuous", primary=True),
+        ])
+        experiment = Experiment(ExperimentData.from_dataframe(make_data(2_000, seed=26), config), config)
+        experiment.run()
+        with pytest.raises(UnsupportedMetricError, match="sample_size_means"):
+            experiment.sensitivity()
 
     def test_sensitivity_reports_what_was_detectable(self):
         data = ExperimentData.from_dataframe(make_data(n=20_000, seed=11), make_config())

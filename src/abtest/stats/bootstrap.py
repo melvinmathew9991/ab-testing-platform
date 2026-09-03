@@ -7,6 +7,7 @@ hard to defend.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Callable
 
 import numpy as np
@@ -90,20 +91,32 @@ def _batch_size(requested: int, row_length: int) -> int:
     return max(1, min(requested, _MAX_ELEMENTS // max(row_length, 1)))
 
 
+@lru_cache(maxsize=32)
+def _supports_axis(statistic: Statistic) -> bool:
+    """Whether ``statistic`` accepts an ``axis`` argument.
+
+    Decided once, on a two-by-two probe, rather than by catching TypeError
+    from the real call - a TypeError raised *inside* a user's statistic would
+    otherwise be misread as "no axis support" and silently downgrade the whole
+    run to the slow path.
+    """
+    probe = np.zeros((2, 2), dtype=float)
+    try:
+        result = np.asarray(statistic(probe, axis=1), dtype=float)  # type: ignore[call-arg]
+    except TypeError:
+        return False
+    return result.shape == (2,)
+
+
 def _rowwise(statistic: Statistic, matrix: np.ndarray) -> np.ndarray:
     """Apply ``statistic`` to each row, vectorised when the callable allows it.
 
     ``np.mean``, ``np.median`` and friends accept an ``axis`` argument and run
     orders of magnitude faster that way; anything else falls back to a loop.
     """
-    try:
-        out = statistic(matrix, axis=1)  # type: ignore[call-arg]
-    except TypeError:
-        return np.apply_along_axis(statistic, 1, matrix)
-    out = np.asarray(out, dtype=float)
-    if out.shape != (matrix.shape[0],):
-        return np.apply_along_axis(statistic, 1, matrix)
-    return out
+    if _supports_axis(statistic):
+        return np.asarray(statistic(matrix, axis=1), dtype=float)  # type: ignore[call-arg]
+    return np.apply_along_axis(statistic, 1, matrix)
 
 
 def bootstrap_ci(

@@ -190,12 +190,44 @@ class Experiment:
         self.results: ExperimentResults | None = None
 
     # ------------------------------------------------------------------
+    def _metric_arrays(
+        self, spec: MetricSpec
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, np.ndarray | None]:
+        """Return per-arm metric values, and covariate values when configured.
+
+        Rows with a missing metric value are dropped. When a covariate is in
+        play the same rows must be dropped from both series, or CUPED is
+        handed two arrays that no longer describe the same units - so the
+        mask is built from both and applied once.
+        """
+        cfg = self.config
+        arrays: list[np.ndarray] = []
+        covariates: list[np.ndarray | None] = []
+        for variant in (cfg.control, cfg.treatment):
+            frame = self.data.arm(variant)
+            values = frame[spec.column].to_numpy(dtype=float)
+            keep = ~np.isnan(values)
+            covariate = None
+            if spec.covariate:
+                covariate = frame[spec.covariate].to_numpy(dtype=float)
+                keep &= ~np.isnan(covariate)
+                covariate = covariate[keep]
+            arrays.append(values[keep])
+            covariates.append(covariate)
+        return arrays[0], arrays[1], covariates[0], covariates[1]
+
+    def _require_dimensions(self, dimensions: list[str]) -> None:
+        """Fail with the available columns before any segment work starts."""
+        missing = [d for d in dimensions if d not in self.data.df.columns]
+        if missing:
+            raise ConfigurationError(
+                f"Cannot segment by {missing}: not in the data. Available "
+                f"columns: {sorted(self.data.df.columns)}"
+            )
+
     def _test_metric(self, spec: MetricSpec) -> MetricOutcome:
         cfg = self.config
-        control = self.data.values(spec, cfg.control)
-        treatment = self.data.values(spec, cfg.treatment)
-        control = control[~np.isnan(control)]
-        treatment = treatment[~np.isnan(treatment)]
+        control, treatment, x_control, x_treatment = self._metric_arrays(spec)
 
         alternative = "two-sided"  # always two-sided: a regression must be visible
 
@@ -231,11 +263,13 @@ class Experiment:
             treatment, _ = winsorize(treatment, cap=cap)
 
         cuped = None
-        if spec.covariate:
-            x_c = self.data.arm(cfg.control)[spec.covariate].to_numpy(dtype=float)
-            x_t = self.data.arm(cfg.treatment)[spec.covariate].to_numpy(dtype=float)
-            cuped = cuped_adjust(control, x_c, treatment, x_t)
+        if spec.covariate and x_control is not None and x_treatment is not None:
+            cuped = cuped_adjust(control, x_control, treatment, x_treatment)
             control, treatment = cuped.adjusted_control, cuped.adjusted_treatment
+            logger.info(
+                "CUPED on %s: theta=%.4f, variance reduced %.1f%%",
+                spec.name, cuped.theta, cuped.variance_reduction * 100,
+            )
 
         test = welch_ttest(
             control,
@@ -320,6 +354,7 @@ class Experiment:
 
         segments = None
         if segment_by:
+            self._require_dimensions(segment_by)
             for dim in segment_by:
                 checks.append(segment_balance(self.data, dim))
             segments = self.analyse_segments(segment_by)
@@ -352,9 +387,10 @@ class Experiment:
             if metrics
             else (cfg.primary_metrics or list(cfg.metrics))
         )
+        self._require_dimensions(dimensions)
         rows = []
         for dim in dimensions:
-            for level, chunk in self.data.df.groupby(dim, dropna=True):
+            for level, chunk in self.data.df.groupby(dim, dropna=True, observed=True):
                 control = chunk[chunk[cfg.variant_col] == cfg.control]
                 treatment = chunk[chunk[cfg.variant_col] == cfg.treatment]
                 if len(control) < 30 or len(treatment) < 30:

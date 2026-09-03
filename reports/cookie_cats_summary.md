@@ -16,6 +16,7 @@ retention_7 moved -4.31% against the hypothesis (p=0.0047)
 ## Trust checks
 
 - **PASS** `sample_ratio_mismatch` - Split 49.563%/50.437% vs expected 50.0%/50.0% (chi2=6.90, p=0.0086)
+- **PASS** `assignment_integrity` - No unit appears in both variants
 - **PASS** `normal_approximation[retention_1 / gate_30]` - retention_1 / gate_30: 20,034 conversions / 24,666 non-conversions
 - **PASS** `normal_approximation[retention_1 / gate_40]` - retention_1 / gate_40: 20,119 conversions / 25,370 non-conversions
 - **PASS** `normal_approximation[retention_7 / gate_30]` - retention_7 / gate_30: 8,502 conversions / 36,198 non-conversions

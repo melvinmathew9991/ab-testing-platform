@@ -89,6 +89,35 @@ def sample_ratio_mismatch(
     )
 
 
+def assignment_integrity(
+    double_assigned: int, n_units: int, critical_share: float = 0.001
+) -> CheckResult:
+    """Check that no unit was exposed to both variants.
+
+    A unit in both arms has an outcome that belongs to neither, so its effect
+    is a blend of the two. A handful can happen legitimately (a person on two
+    devices resolving to one id late); a systematic rate means the assignment
+    or the exposure log is broken, which is not something the analysis can
+    correct for - hence critical above the threshold.
+    """
+    share = double_assigned / n_units if n_units else 0.0
+    passed = double_assigned == 0
+    severity = "critical" if share > critical_share else "warning"
+    return CheckResult(
+        name="assignment_integrity",
+        passed=passed,
+        severity=severity,
+        message=(
+            "No unit appears in both variants"
+            if passed
+            else f"{double_assigned:,} units ({share:.3%}) appear in both variants; "
+            f"their outcomes cannot be attributed to either arm"
+            + ("" if severity == "warning" else " - assignment looks broken")
+        ),
+        details={"double_assigned": int(double_assigned), "share": share},
+    )
+
+
 def outlier_influence(
     values: np.ndarray,
     metric_name: str,
@@ -197,7 +226,8 @@ def run_all_checks(data: ExperimentData) -> list[CheckResult]:
     results: list[CheckResult] = [
         sample_ratio_mismatch(
             counts[cfg.control], counts[cfg.treatment], cfg.expected_split
-        )
+        ),
+        assignment_integrity(data.double_assigned, len(data)),
     ]
 
     for metric in cfg.metrics:
@@ -214,9 +244,9 @@ def run_all_checks(data: ExperimentData) -> list[CheckResult]:
             results.append(outlier_influence(pooled, metric.name))
 
     for issue in data.issues:
-        results.append(
-            CheckResult("data_quality", False, "warning", issue)
-        )
+        if "double assignment" in issue:
+            continue  # already reported by assignment_integrity
+        results.append(CheckResult("data_quality", False, "warning", issue))
     return results
 
 

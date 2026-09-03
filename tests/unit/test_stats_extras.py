@@ -44,6 +44,18 @@ class TestPower:
         )
         assert achieved == pytest.approx(0.80, abs=0.01)
 
+    def test_power_curve_handles_effects_beyond_the_valid_range(self):
+        """A treatment rate outside (0, 1) is undefined, not a number."""
+        curve = power_curve(0.9, np.linspace(0, 0.5, 11), n_control=5_000)
+        assert curve["power"].notna().any()
+        assert curve.loc[curve["effect_absolute"] + 0.9 >= 1, "power"].isna().all()
+
+    def test_vectorised_power_matches_scalar_calls(self):
+        effects = np.linspace(0.001, 0.05, 15)
+        vectorised = power_for_proportions(0.2, effects, 10_000, 10_000)
+        scalar = [power_for_proportions(0.2, float(e), 10_000, 10_000) for e in effects]
+        assert np.allclose(vectorised, scalar)
+
     def test_power_curve_is_monotonic(self):
         curve = power_curve(0.2, np.linspace(0, 0.2, 25), n_control=5_000)
         assert curve["power"].is_monotonic_increasing
@@ -106,6 +118,21 @@ class TestResampling:
         control, treatment = rng.normal(3, 1, 600), rng.normal(3, 1, 600)
         res = permutation_test(control, treatment, n_permutations=1_000, seed=6)
         assert abs(np.mean(res.null_distribution)) < 0.05
+
+    def test_a_statistic_raising_typeerror_is_not_silently_downgraded(self):
+        """Regression: TypeError from inside a user statistic used to be read
+        as "no axis support", silently switching to the slow path."""
+        from abtest.stats.bootstrap import _supports_axis
+
+        calls = {"n": 0}
+
+        def picky(x, axis=None):
+            calls["n"] += 1
+            if calls["n"] > 1 and x.shape[0] > 2:
+                raise TypeError("this is a bug in the statistic, not a signature issue")
+            return np.mean(x, axis=axis)
+
+        assert _supports_axis(picky) is True
 
     def test_non_vectorised_statistic_still_works(self):
         def trimmed(x):

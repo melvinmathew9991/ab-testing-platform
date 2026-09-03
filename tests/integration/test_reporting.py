@@ -41,6 +41,23 @@ def test_lift_forest(tmp_path, summary):
     assert _written(path)
 
 
+def test_lift_forest_survives_a_zero_baseline_metric(tmp_path, summary):
+    """Regression: a metric with a zero control rate has a NaN relative
+    interval, which used to reach the axis limits and raise."""
+    blank = summary.iloc[[0]].copy()
+    blank["metric"] = "never_converted"
+    blank[["control", "relative_diff", "rel_ci_low", "rel_ci_high"]] = [0.0, np.nan, np.nan, np.nan]
+    path = plots.lift_forest(pd.concat([summary, blank]), str(tmp_path / "forest_nan.png"))
+    assert _written(path)
+
+
+def test_lift_forest_with_no_plottable_metric(tmp_path, summary):
+    blank = summary.copy()
+    blank[["relative_diff", "rel_ci_low", "rel_ci_high"]] = np.nan
+    path = plots.lift_forest(blank, str(tmp_path / "forest_empty.png"))
+    assert _written(path)
+
+
 def test_metric_bars(tmp_path, summary):
     assert _written(plots.metric_bars(summary, str(tmp_path / "bars.png")))
 

@@ -1,6 +1,6 @@
 {
   "experiment": "Cookie Cats - first gate at level 30 vs level 40",
-  "run_at": "2026-09-03 15:11 UTC",
+  "run_at": "2026-09-03 15:19 UTC",
   "counts": {
     "gate_30": 44700,
     "gate_40": 45489
@@ -16,6 +16,12 @@
       "status": "PASS",
       "severity": "critical",
       "message": "Split 49.563%/50.437% vs expected 50.0%/50.0% (chi2=6.90, p=0.0086)"
+    },
+    {
+      "check": "assignment_integrity",
+      "status": "PASS",
+      "severity": "warning",
+      "message": "No unit appears in both variants"
     },
     {
       "check": "normal_approximation[retention_1 / gate_30]",

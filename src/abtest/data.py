@@ -34,6 +34,8 @@ class ExperimentData:
     df: pd.DataFrame
     config: ExperimentConfig
     issues: list[str] = field(default_factory=list)
+    double_assigned: int = 0
+    _arms: dict[str, pd.DataFrame] = field(default_factory=dict, repr=False)
 
     @classmethod
     def from_dataframe(
@@ -84,24 +86,30 @@ class ExperimentData:
             )
             df = df[df[cfg.variant_col].isin(expected)]
 
-        n_dupes = int(df[cfg.unit_col].duplicated().sum())
+        # Double assignment has to be measured before de-duplication, or the
+        # evidence for it is the very thing that gets dropped. Only repeated
+        # ids can be double-assigned, so the grouping runs on that subset
+        # rather than on the whole frame.
+        repeated = df[cfg.unit_col].duplicated(keep=False)
+        n_dupes = int(repeated.sum())
         if n_dupes:
+            per_unit_variants = (
+                df.loc[repeated, [cfg.unit_col, cfg.variant_col]]
+                .groupby(cfg.unit_col, observed=True)[cfg.variant_col]
+                .nunique()
+            )
+            self.double_assigned = int((per_unit_variants > 1).sum())
+            if self.double_assigned:
+                self.issues.append(
+                    f"{self.double_assigned:,} units appear in both variants "
+                    f"(double assignment) - their outcomes cannot be attributed "
+                    f"to either arm"
+                )
             self.issues.append(
-                f"{n_dupes:,} duplicated {cfg.unit_col} values - each unit must "
-                f"appear once; keeping the first occurrence"
+                f"{n_dupes:,} rows share a {cfg.unit_col} with another row - each "
+                f"unit must appear once; keeping the first occurrence"
             )
             df = df.drop_duplicates(subset=cfg.unit_col, keep="first")
-
-        # A unit assigned to both arms breaks the independence assumption.
-        crossover = (
-            df.groupby(cfg.unit_col)[cfg.variant_col].nunique().gt(1).sum()
-            if n_dupes
-            else 0
-        )
-        if crossover:
-            self.issues.append(
-                f"{crossover:,} units appear in both variants (double assignment)"
-            )
 
         for metric in cfg.metrics:
             col = df[metric.column]
@@ -120,6 +128,12 @@ class ExperimentData:
                     )
 
         self.df = df.reset_index(drop=True)
+        # One grouping pass replaces a full-frame scan per arm access; the
+        # analysis reads each arm many times (checks, tests, resampling).
+        self._arms = {
+            str(variant): frame
+            for variant, frame in self.df.groupby(cfg.variant_col, observed=True)
+        }
         logger.info(
             "Validated %s: %d units across %s, %d metrics, %d issues",
             cfg.name, len(self.df), cfg.variants, len(cfg.metrics), len(self.issues),
@@ -132,8 +146,10 @@ class ExperimentData:
     # Accessors
     # ------------------------------------------------------------------
     def arm(self, variant: str) -> pd.DataFrame:
-        """Rows belonging to one variant."""
-        return self.df[self.df[self.config.variant_col] == variant]
+        """Rows belonging to one variant, from the cache built at validation."""
+        if variant not in self._arms:
+            self._arms[variant] = self.df[self.df[self.config.variant_col] == variant]
+        return self._arms[variant]
 
     def values(self, metric: MetricSpec | str, variant: str) -> np.ndarray:
         """Metric values for one variant as a float array."""
